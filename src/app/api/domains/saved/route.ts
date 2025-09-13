@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(savedDomain);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Save domain error:', error);
     if (error.code === 'P2002') {
       return NextResponse.json({ 

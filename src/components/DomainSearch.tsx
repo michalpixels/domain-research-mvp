@@ -5,7 +5,7 @@ import { Search, Globe, Shield, Clock, Download, Star } from 'lucide-react';
 
 const DomainSearchMVP = () => {
   const [domain, setDomain] = useState('');
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState({ plan: 'free', searchesUsed: 15, searchLimit: 20 });
 
@@ -211,7 +211,7 @@ const DomainSearchMVP = () => {
                 <div>
                   <span className="text-gray-600 text-sm">A Records:</span>
                   <div className="mt-1">
-                    {results.dns.a.map((ip, index) => (
+                    {results.dns.a.map((ip: string, index: number) => (
                       <div key={index} className="font-mono text-sm bg-gray-50 px-2 py-1 rounded">
                         {ip}
                       </div>
@@ -222,7 +222,7 @@ const DomainSearchMVP = () => {
                 <div>
                   <span className="text-gray-600 text-sm">MX Records:</span>
                   <div className="mt-1">
-                    {results.dns.mx.map((mx, index) => (
+                    {results.dns.mx.map((mx: string, index: number) => (
                       <div key={index} className="font-mono text-sm bg-gray-50 px-2 py-1 rounded">
                         {mx}
                       </div>

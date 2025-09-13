@@ -120,7 +120,7 @@ class DomainResearchService {
       return result;
       
     } catch (error) {
-      throw new Error(`Domain research failed: ${error.message}`);
+      throw new Error(`Domain research failed: ${String(error)}`);
     }
   }
   

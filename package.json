@@ -8,12 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@clerk/nextjs": "^4.29.9",
+    "@clerk/nextjs": "^4.29.5",
     "@prisma/client": "^5.7.1",
     "@stripe/stripe-js": "^2.4.0",
     "@tanstack/react-query": "^5.17.1",

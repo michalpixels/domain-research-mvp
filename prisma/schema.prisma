@@ -1,19 +1,52 @@
-import { authMiddleware } from '@clerk/nextjs';
+generator client {
+  provider = "prisma-client-js"
+}
 
-export default authMiddleware({
-  publicRoutes: [
-    '/',
-    '/api/stripe/webhook',
-    '/pricing',
-    '/features',
-    '/sign-in',
-    '/sign-up',
-  ],
-  ignoredRoutes: [
-    '/api/stripe/webhook',
-  ],
-});
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
-};
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Subscription
+  plan          String   @default("free") // free, starter, pro, enterprise
+  searchesUsed  Int      @default(0)
+  searchLimit   Int      @default(20)
+  
+  // Relations
+  searches      DomainSearch[]
+  savedDomains  SavedDomain[]
+  
+  @@map("users")
+}
+
+model DomainSearch {
+  id          String   @id @default(cuid())
+  userId      String
+  domain      String
+  searchData  Json
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("domain_searches")
+}
+
+model SavedDomain {
+  id        String   @id @default(cuid())
+  userId    String
+  domain    String
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, domain])
+  @@map("saved_domains")
+}
