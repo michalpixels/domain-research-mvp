@@ -237,8 +237,10 @@ class DomainResearchService {
       const threatDetails = [];
       if (analysisResults) {
         for (const [engine, result] of Object.entries(analysisResults)) {
-          if (result.category === 'malicious' || result.category === 'suspicious') {
-            threatDetails.push(`${engine}: ${result.result}`);
+          // Type assertion to fix the TypeScript error
+          const analysisResult = result as { category: string; result: string };
+          if (analysisResult.category === 'malicious' || analysisResult.category === 'suspicious') {
+            threatDetails.push(`${engine}: ${analysisResult.result}`);
           }
         }
       }
