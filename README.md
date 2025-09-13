@@ -1,47 +1,26 @@
-<<<<<<< HEAD
-# Dependencies
-/node_modules
-/.pnp
-.pnp.js
+# Domain Research MVP
 
-# Testing
-/coverage
+Professional domain research tool built with Next.js 14, TypeScript, and modern web technologies.
 
-# Next.js
-/.next/
-/out/
+## Features
 
-# Production
-/build
+- 🔍 Comprehensive domain WHOIS lookup
+- 🛡️ Security analysis and threat detection  
+- 📊 DNS records analysis
+- 💰 Freemium model with Stripe payments
+- 📈 User analytics and search history
 
-# Misc
-.DS_Store
-*.pem
+## Tech Stack
 
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Backend**: Next.js API routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Auth**: Clerk
+- **Payments**: Stripe
+- **Hosting**: Railway
 
-# Local env files
-.env*.local
-.env
+## Getting Started
 
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# Prisma
-/prisma/dev.db
-/prisma/dev.db-journal
-
-# IDE
-.vscode/
-.idea/
-=======
-# domain-research-mvp
-Professional domain research tool - MVP
->>>>>>> f44da72f47f9562fdaf0cd0a98e4cee1624cb361
+1. Install dependencies:
+```bash
+   npm install
