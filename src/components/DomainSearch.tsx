@@ -281,22 +281,22 @@ const DomainSearchMVP = () => {
             </p>
             
             <div className="flex justify-center space-x-8">
-              <div className="bg-white bg-opacity-20 rounded-lg p-4">
+              <div className="bg-white bg-opacity-15 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Starter - $29/month</h3>
                 <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• 500 searches/month</li>
-                  <li>• Full security reports</li>
-                  <li>• CSV exports</li>
+                  <li>500 searches/month</li>
+                  <li>Full security reports</li>
+                  <li>CSV exports</li>
                 </ul>
               </div>
               
-              <div className="bg-white bg-opacity-30 rounded-lg p-4 border-2 border-white border-opacity-50">
+              <div className="bg-white bg-opacity-15 rounded-lg p-4 border-2 border-white border-opacity-50">
                 <h3 className="font-semibold mb-2">Pro - $99/month</h3>
                 <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Unlimited searches</li>
-                  <li>• Historical data</li>
-                  <li>• API access</li>
-                  <li>• Bulk processing</li>
+                  <li>Unlimited searches</li>
+                  <li>Historical data</li>
+                  <li>API access</li>
+                  <li>Bulk processing</li>
                 </ul>
               </div>
             </div>

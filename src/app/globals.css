@@ -536,7 +536,11 @@ button {
 }
 
 /* Background opacity utilities */
-.bg-opacity-20 {
+.bg-opacity-15 {
+  background-color: rgba(255, 255, 255, 0.15
+}
+
+.bg-opacity-20
   background-color: rgba(255, 255, 255, 0.2);
 }
 
