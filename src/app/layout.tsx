@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import './globals.css'  // ← Make sure this line exists
+import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { ReactQueryProvider } from '@/lib/providers'
 
@@ -17,14 +17,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={inter.className}>
+    <html lang="en">
+      <body className={inter.className}>
+        {/* Providers should be inside the body */}
+        <ClerkProvider>
           <ReactQueryProvider>
             {children}
           </ReactQueryProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   )
 }

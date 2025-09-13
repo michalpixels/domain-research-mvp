@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,32 +12,33 @@ datasource db {
 model User {
   id            String   @id @default(cuid())
   clerkId       String   @unique
-  email         String   @unique
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Subscription
+  email         String?
   plan          String   @default("free") // free, starter, pro, enterprise
   searchesUsed  Int      @default(0)
   searchLimit   Int      @default(20)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
   // Relations
-  searches      DomainSearch[]
-  savedDomains  SavedDomain[]
+  domainSearches DomainSearch[]
+  savedDomains   SavedDomain[]
   
   @@map("users")
 }
 
 model DomainSearch {
-  id          String   @id @default(cuid())
-  userId      String
-  domain      String
-  searchData  Json
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  domain     String
+  searchData Json     // Store the full API response
+  createdAt  DateTime @default(now())
   
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("domain_searches")
+  @@index([userId, createdAt])
+  @@index([domain])
 }
 
 model SavedDomain {
@@ -44,8 +47,10 @@ model SavedDomain {
   domain    String
   notes     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([userId, domain])
   @@map("saved_domains")
