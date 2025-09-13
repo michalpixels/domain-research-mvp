@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     // TEMPORARY: Skip auth for testing
-    const userId = 'temp-user-123';
+    const userId = 'temp-user-123'; // Temporary bypass
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
