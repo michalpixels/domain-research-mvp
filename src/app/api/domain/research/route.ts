@@ -68,9 +68,9 @@ class DomainResearchService {
       // Parallel API calls for better performance - NOW INCLUDING ABUSEIPDB
       const [whoisData, securityData, dnsData, abuseData] = await Promise.allSettled([
         this.getWhoisData(domain),
-        this.getSecurityData(domain),
+        new Promise(resolve => setTimeout(() => resolve(this.getSecurityData(domain)), 1000)),
         this.getDnsData(domain),
-        this.getAbuseIPData(domain)
+        new Promise(resolve => setTimeout(() => resolve(this.getAbuseIPData(domain)), 2000))
       ]);
       
       const result = {
@@ -97,6 +97,12 @@ class DomainResearchService {
       console.error(`❌ Domain research failed for ${domain}:`, error);
       throw new Error(`Domain research failed: ${String(error)}`);
     }
+
+    // In your researchDomain method, add more logging:
+    console.log('🔑 API Keys status:');
+    console.log('WhoisJSON:', process.env.WHOISJSON_API_KEY ? 'SET' : 'MISSING');
+    console.log('VirusTotal:', process.env.VIRUSTOTAL_API_KEY ? 'SET' : 'MISSING');
+    console.log('AbuseIPDB:', process.env.ABUSE_IP_DB_KEY ? 'SET' : 'MISSING');
   }
   
   private collectErrors(results: PromiseSettledResult<any>[]) {
