@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     
   } catch (error: any) {
     console.error('Save domain error:', error);
-    if (error.code === 'P2002') {
+    if (error && error.code === 'P2002') {
       return NextResponse.json({ 
         error: 'Domain already saved' 
       }, { status: 400 });

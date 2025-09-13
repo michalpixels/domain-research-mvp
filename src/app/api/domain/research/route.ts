@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 // Rate limiting cache (in production, use Redis)
@@ -25,12 +25,16 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      // Create user if doesn't exist
-      const { user: clerkUser } = await auth();
+      // Create user if doesn't exist - get user data from Clerk
+      const { userId: clerkUserId } = auth();
+      if (!clerkUserId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      
       const newUser = await prisma.user.create({
         data: {
-          clerkId: userId,
-          email: clerkUser?.emailAddresses?.[0]?.emailAddress || '',
+          clerkId: clerkUserId,
+          email: '', // Will be updated when user provides email
           plan: 'free',
           searchesUsed: 0,
           searchLimit: 20
