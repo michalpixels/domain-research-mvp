@@ -554,6 +554,84 @@ button {
   outline: none;
 }
 
+/* Pricing card specific styles */
+.pricing-card {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.pricing-card.featured {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.pricing-card h3 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.pricing-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pricing-card li {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0;
+}
+
+/* List styles */
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  margin: 0;
+  padding: 0;
+}
+
+/* Flex utilities for pricing section */
+.pricing-container {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pricing-container > div {
+  flex: 1;
+  min-width: 280px;
+  max-width: 350px;
+}
+
+/* Button specific for pricing CTA */
+.cta-button {
+  background: white;
+  color: #2563eb;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1.5rem;
+}
+
+.cta-button:hover {
+  background-color: #f3f4f6;
+}
+
 /* Custom responsive utilities */
 @media (max-width: 640px) {
   .max-w-2xl {
@@ -571,5 +649,14 @@ button {
   .space-x-4 > * + * {
     margin-left: 0;
     margin-top: 1rem;
+  }
+  
+  .pricing-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .pricing-container > div {
+    min-width: 100%;
   }
 }
