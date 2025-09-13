@@ -1,10 +1,15 @@
+// src/app/api/stripe/checkout/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+// Only initialize Stripe if API key is available
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-02-24.acacia',
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +18,12 @@ export async function POST(request: NextRequest) {
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!stripe) {
+      return NextResponse.json({ 
+        error: 'Payment system not configured' 
+      }, { status: 503 });
     }
 
     // Plan pricing (in cents)
@@ -126,6 +137,12 @@ export async function GET(request: NextRequest) {
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+    }
+
+    if (!stripe) {
+      return NextResponse.json({ 
+        error: 'Payment system not configured' 
+      }, { status: 503 });
     }
 
     // Retrieve the checkout session

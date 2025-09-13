@@ -1,16 +1,27 @@
+// src/app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-});
+// Only initialize Stripe if API key is available
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-02-24.acacia',
+  });
+}
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
+  
+  // Check if Stripe is configured
+  if (!stripe || !webhookSecret) {
+    return NextResponse.json({ 
+      error: 'Webhook not configured' 
+    }, { status: 503 });
+  }
   
   // Fix for Next.js 15 - get signature from request headers directly
   const signature = request.headers.get('stripe-signature');
