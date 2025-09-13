@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Dependencies
 /node_modules
 /.pnp
@@ -40,3 +41,7 @@ next-env.d.ts
 # IDE
 .vscode/
 .idea/
+=======
+# domain-research-mvp
+Professional domain research tool - MVP
+>>>>>>> f44da72f47f9562fdaf0cd0a98e4cee1624cb361
