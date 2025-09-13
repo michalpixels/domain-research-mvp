@@ -9,6 +9,7 @@ interface DomainResults {
   security: any;
   dns: any;
   cached: boolean;
+  abuse?: any;
   errors?: string[];
   remainingSearches?: number;
   userPlan?: string;
