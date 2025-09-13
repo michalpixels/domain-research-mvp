@@ -246,24 +246,24 @@ class DomainResearchService {
       }
       
       return {
-        malicious: threatsFound > 0,
-        reputation: threatsFound > 0 ? 
-          `⚠️ ${threatsFound}/${totalScanned} security engines detected threats` : 
-          `✅ Clean - ${harmless}/${totalScanned} engines verified as safe`,
-        lastScan: attributes.last_analysis_date ? 
-          new Date(attributes.last_analysis_date * 1000).toISOString().split('T')[0] : 
-          'Unknown',
-        threats: threatsFound,
-        total: totalScanned,
-        harmless: harmless,
-        suspicious: suspicious,
-        malicious: malicious,
-        undetected: undetected,
-        categories: attributes.categories || [],
-        threatDetails: threatDetails.slice(0, 3), // Show top 3 threat details
-        reputation_score: attributes.reputation || 0,
-        scanId: data.id
-      };
+      malicious: threatsFound > 0,
+      reputation: threatsFound > 0 ? 
+        `⚠️ ${threatsFound}/${totalScanned} security engines detected threats` : 
+        `✅ Clean - ${harmless}/${totalScanned} engines verified as safe`,
+      lastScan: attributes.last_analysis_date ? 
+        new Date(attributes.last_analysis_date * 1000).toISOString().split('T')[0] : 
+        'Unknown',
+      threats: threatsFound,
+      total: totalScanned,
+      harmless: harmless,
+      suspicious: suspicious,
+      undetected: undetected,
+      // Removed duplicate malicious property
+      categories: attributes.categories || [],
+      threatDetails: threatDetails.slice(0, 3),
+      reputation_score: attributes.reputation || 0,
+      scanId: data.id
+    };
       
     } catch (error) {
       console.warn(`⚠️ VirusTotal API error for ${domain}:`, error);
