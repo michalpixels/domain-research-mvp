@@ -1,4 +1,4 @@
-// src/components/DomainSearch.tsx - WITH CONSISTENT INLINE STYLING
+// src/components/DomainSearch.tsx - WITH UPGRADE STATUS HANDLING
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -24,6 +24,7 @@ const DomainSearch = () => {
   const [results, setResults] = useState<DomainResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [upgradeStatus, setUpgradeStatus] = useState('');
   const [userStats, setUserStats] = useState({ 
     plan: 'free', 
     searchesUsed: 0, 
@@ -37,6 +38,41 @@ const DomainSearch = () => {
       loadUserData();
     }
   }, [isLoaded, isSignedIn]);
+
+  // Check URL parameters for upgrade status
+  useEffect(() => {
+    // Check URL parameters for upgrade status
+    const urlParams = new URLSearchParams(window.location.search);
+    const upgraded = urlParams.get('upgraded');
+    const paymentSuccess = urlParams.get('payment_success');
+    const paymentError = urlParams.get('payment_error');
+    
+    if (upgraded === 'true') {
+      setUpgradeStatus('success');
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Reload user data
+      loadUserData();
+    } else if (paymentSuccess === 'true') {
+      setUpgradeStatus('manual_needed');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentError === 'true') {
+      setUpgradeStatus('error');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+    useEffect(() => {
+    if (userStats.plan === 'starter') {
+      console.log('🔍 Debug userStats:', {
+        plan: userStats.plan,
+        searchLimit: userStats.searchLimit,
+        searchesUsed: userStats.searchesUsed,
+        remaining: userStats.searchLimit - userStats.searchesUsed,
+        remainingCalculated: remainingSearches
+      });
+    }
+  }, [userStats]);
 
   const loadUserData = async () => {
     try {
@@ -138,8 +174,480 @@ const DomainSearch = () => {
     }
   };
 
-  const remainingSearches = userStats.searchLimit - userStats.searchesUsed;
+  // Add this function to your DomainSearch.tsx component (after saveDomain function):
+  const exportReport = () => {
+    if (!results || userStats.plan === 'free') {
+      alert('Export functionality is available for Starter and Pro users only.');
+      return;
+    }
+
+    try {
+      // Create comprehensive report data
+      const reportData = {
+        domain: results.domain,
+        searchDate: new Date().toISOString(),
+        searchedBy: userStats.email,
+        plan: userStats.plan,
+        
+        whois: results.whois ? {
+          registrar: results.whois.registrar || 'Unknown',
+          registrationDate: results.whois.registrationDate || 'Unknown',
+          expirationDate: results.whois.expirationDate || 'Unknown',
+          nameServers: results.whois.nameServers || [],
+          organization: results.whois.registrant?.organization || 'Private',
+          country: results.whois.registrant?.country || 'Unknown',
+          status: results.whois.status || [],
+          dnssec: results.whois.dnssec || 'Unknown'
+        } : null,
+        
+        security: results.security ? {
+          reputation: results.security.reputation || 'Unknown',
+          malicious: results.security.malicious || false,
+          threats: results.security.threats || 0,
+          total: results.security.total || 0,
+          lastScan: results.security.lastScan || 'Unknown'
+        } : null,
+        
+        dns: results.dns || {},
+        
+        abuse: results.abuse ? {
+          ip: results.abuse.ip,
+          abuseConfidence: results.abuse.abuseConfidence,
+          isAbusive: results.abuse.isAbusive,
+          countryCode: results.abuse.countryCode,
+          usageType: results.abuse.usageType,
+          isp: results.abuse.isp,
+          totalReports: results.abuse.totalReports,
+          isWhitelisted: results.abuse.isWhitelisted
+        } : null,
+        
+        errors: results.errors || []
+      };
+
+      // Generate CSV content
+      const csvContent = generateCSVReport(reportData);
+      
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `domain-report-${results.domain}-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Show success message
+      alert(`Domain report for ${results.domain} has been exported successfully!`);
+      
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export report. Please try again.');
+    }
+  };
+
+  // Add this function to your DomainSearch.tsx component (after exportReport function):
+  const showHistoricalData = async () => {
+    if (!results || userStats.plan === 'free') {
+      alert('Historical data is available for Starter and Pro users only.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Fetch real historical data from API
+      const response = await fetch(`/api/domain/history?domain=${results.domain}`);
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch historical data');
+      }
+      
+      const historicalData = await response.json();
+      
+      // If no historical data exists yet, show message
+      if (historicalData.snapshots.length === 0) {
+        alert(`No historical data available for ${results.domain} yet. Historical data will be collected from future searches.`);
+        return;
+      }
+      
+      // Process the real data and show modal
+      showHistoricalModal(historicalData);
+      
+    } catch (error) {
+      console.error('Historical data error:', error);
+      alert('Failed to load historical data: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showHistoricalModal = (historicalData: any) => {
+    // Create modal with real data
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 900px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    `;
+    
+    // Generate content from real data
+    modalContent.innerHTML = generateRealHistoricalContent(historicalData);
+    
+    // Add close functionality
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.style.cssText = `
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #6b7280;
+    `;
+    
+    closeButton.onclick = () => document.body.removeChild(modal);
+    modalContent.appendChild(closeButton);
+    modal.appendChild(modalContent);
+    
+    modal.onclick = (e) => {
+      if (e.target === modal) document.body.removeChild(modal);
+    };
+    
+    document.body.appendChild(modal);
+  };
+
+  const generateRealHistoricalContent = (data: any) => {
+    const snapshots = data.snapshots;
+    const domain = data.domain;
+    
+    // Analyze changes between snapshots
+    const changes = [];
+    for (let i = 0; i < snapshots.length - 1; i++) {
+      const current = snapshots[i].snapshot;
+      const previous = snapshots[i + 1].snapshot;
+      
+      // Check for registrar changes
+      if (current.whois?.registrar !== previous.whois?.registrar) {
+        changes.push({
+          date: snapshots[i].date,
+          type: 'registrar',
+          change: `Registrar changed from ${previous.whois?.registrar} to ${current.whois?.registrar}`
+        });
+      }
+      
+      // Check for name server changes
+      if (JSON.stringify(current.whois?.nameServers) !== JSON.stringify(previous.whois?.nameServers)) {
+        changes.push({
+          date: snapshots[i].date,
+          type: 'nameservers',
+          change: 'Name servers modified'
+        });
+      }
+      
+      // Check for security status changes
+      if (current.security?.malicious !== previous.security?.malicious) {
+        changes.push({
+          date: snapshots[i].date,
+          type: 'security',
+          change: `Security status changed to ${current.security?.malicious ? 'Malicious' : 'Clean'}`
+        });
+      }
+    }
+    
+    return `
+      <div>
+        <h2 style="font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+          Historical Data for ${domain}
+        </h2>
+        <p style="color: #4b5563; margin-bottom: 24px;">
+          ${snapshots.length} snapshots collected over ${data.timeframe} (${data.plan} plan)
+        </p>
+        
+        <div style="margin-bottom: 32px;">
+          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+            Snapshot Timeline
+          </h3>
+          <div style="background: #f8fafc; border-radius: 8px; padding: 16px; max-height: 300px; overflow-y: auto;">
+            ${snapshots.map((snapshot: any, index: number) => `
+              <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 16px; font-size: 14px;">
+                <span style="font-weight: 600;">${snapshot.date}</span>
+                <span>${snapshot.snapshot.whois?.registrar || 'Unknown Registrar'}</span>
+                <span style="color: ${snapshot.snapshot.security?.malicious ? '#dc2626' : '#16a34a'};">
+                  ${snapshot.snapshot.security?.malicious ? 'Warning' : 'Clean'}
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        ${changes.length > 0 ? `
+          <div style="margin-bottom: 32px;">
+            <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+              Detected Changes
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              ${changes.slice(0, 5).map(change => `
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
+                  <span style="color: #dc2626; font-weight: 600;">${change.date}:</span>
+                  <span style="color: #7f1d1d;"> ${change.change}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : `
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 32px;">
+            <p style="color: #15803d; margin: 0;">No significant changes detected across snapshots.</p>
+          </div>
+        `}
+        
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+          ">Close Historical Data</button>
+        </div>
+      </div>
+    `;
+  };
+
+  // Helper function to generate historical data content
+  const generateHistoricalDataContent = (domain: string, plan: string) => {
+    const timeframes = plan === 'starter' ? '6 months' : '5 years';
+    const currentDate = new Date();
+    
+    // Generate mock historical data points
+    const historicalPoints = [];
+    const months = plan === 'starter' ? 6 : 24; // 6 months for starter, 24 months for pro
+    
+    for (let i = months; i >= 0; i--) {
+      const date = new Date(currentDate);
+      date.setMonth(date.getMonth() - i);
+      
+      historicalPoints.push({
+        date: date.toISOString().split('T')[0],
+        registrar: i === 0 ? (results?.whois?.registrar || 'Current Registrar') : 'Previous Registrar ' + (i % 3 + 1),
+        nameservers: i === 0 ? (results?.whois?.nameServers?.length || 2) : Math.floor(Math.random() * 4) + 1,
+        securityStatus: Math.random() > 0.8 ? 'Warning' : 'Clean',
+        changes: i === 0 ? 'Current' : (Math.random() > 0.7 ? 'Changed' : 'No Change')
+      });
+    }
+    
+    return `
+      <div>
+        <h2 style="font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+          Historical Data for ${domain}
+        </h2>
+        <p style="color: #4b5563; margin-bottom: 24px;">
+          ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan provides ${timeframes} of historical data
+        </p>
+        
+        <div style="margin-bottom: 32px;">
+          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+            Registration History
+          </h3>
+          <div style="background: #f8fafc; border-radius: 8px; padding: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 16px; font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 12px;">
+              <span>Date</span>
+              <span>Registrar</span>
+              <span>Name Servers</span>
+              <span>Status</span>
+            </div>
+            ${historicalPoints.slice(0, 8).map(point => `
+              <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 16px; font-size: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb;">
+                <span>${point.date}</span>
+                <span style="color: ${point.changes === 'Changed' ? '#dc2626' : '#374151'};">${point.registrar}</span>
+                <span>${point.nameservers} servers</span>
+                <span style="color: ${point.securityStatus === 'Warning' ? '#d97706' : '#16a34a'};">${point.securityStatus}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 32px;">
+          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+            Key Changes Detected
+          </h3>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            ${historicalPoints.filter(p => p.changes === 'Changed').slice(0, 3).map(point => `
+              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
+                <span style="color: #dc2626; font-weight: 600;">${point.date}:</span>
+                <span style="color: #7f1d1d;"> Registrar changed to ${point.registrar}</span>
+              </div>
+            `).join('')}
+            
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px;">
+              <span style="color: #16a34a; font-weight: 600;">Security:</span>
+              <span style="color: #15803d;"> No malicious activity detected in historical scans</span>
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+            Analytics Summary
+          </h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+            <div style="background: #dbeafe; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: #1e40af;">${historicalPoints.filter(p => p.changes === 'Changed').length}</div>
+              <div style="font-size: 14px; color: #1e40af;">Total Changes</div>
+            </div>
+            <div style="background: #dcfce7; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: #15803d;">${Math.floor(Math.random() * 99) + 1}%</div>
+              <div style="font-size: 14px; color: #15803d;">Uptime</div>
+            </div>
+            <div style="background: #fef3c7; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="font-size: 24px; font-weight: 700; color: #d97706;">${historicalPoints.filter(p => p.securityStatus === 'Warning').length}</div>
+              <div style="font-size: 14px; color: #d97706;">Security Alerts</div>
+            </div>
+          </div>
+        </div>
+        
+        ${plan === 'starter' ? `
+          <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 16px; margin-top: 24px;">
+            <p style="color: #7c3aed; margin: 0; font-size: 14px;">
+              <strong>Upgrade to Pro</strong> for 5-year historical data, advanced analytics, and API access to historical records.
+            </p>
+          </div>
+        ` : ''}
+        
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+          ">Close Historical Data</button>
+        </div>
+      </div>
+    `;
+  };
+
+  // Add this helper function to generate CSV content:
+  const generateCSVReport = (data: any) => {
+    const lines = [];
+    
+    // Header
+    lines.push('DomainInsight - Domain Research Report');
+    lines.push('');
+    lines.push(`Domain,${data.domain}`);
+    lines.push(`Search Date,${new Date(data.searchDate).toLocaleString()}`);
+    lines.push(`Searched By,${data.searchedBy}`);
+    lines.push(`Plan,${data.plan.toUpperCase()}`);
+    lines.push('');
+    
+    // WHOIS Information
+    lines.push('WHOIS INFORMATION');
+    if (data.whois) {
+      lines.push(`Registrar,${data.whois.registrar}`);
+      lines.push(`Registration Date,${data.whois.registrationDate}`);
+      lines.push(`Expiration Date,${data.whois.expirationDate}`);
+      lines.push(`Organization,${data.whois.organization}`);
+      lines.push(`Country,${data.whois.country}`);
+      lines.push(`DNSSEC,${data.whois.dnssec}`);
+      lines.push(`Status,"${data.whois.status.join(', ')}"`);
+      lines.push(`Name Servers,"${data.whois.nameServers.join(', ')}"`);
+    } else {
+      lines.push('WHOIS data unavailable');
+    }
+    lines.push('');
+    
+    // Security Analysis
+    lines.push('SECURITY ANALYSIS');
+    if (data.security) {
+      lines.push(`Reputation,${data.security.reputation}`);
+      lines.push(`Malicious,${data.security.malicious ? 'Yes' : 'No'}`);
+      lines.push(`Threats Found,${data.security.threats}`);
+      lines.push(`Total Scanned,${data.security.total}`);
+      lines.push(`Last Scan,${data.security.lastScan}`);
+    } else {
+      lines.push('Security data unavailable');
+    }
+    lines.push('');
+    
+    // DNS Records
+    lines.push('DNS RECORDS');
+    if (data.dns && Object.keys(data.dns).length > 0) {
+      Object.entries(data.dns).forEach(([type, records]: [string, any]) => {
+        if (records && records.length > 0) {
+          lines.push(`${type.toUpperCase()} Records`);
+          records.forEach((record: any) => {
+            lines.push(`,${record.value || record}`);
+          });
+        }
+      });
+    } else {
+      lines.push('DNS data unavailable');
+    }
+    lines.push('');
+    
+    // IP Reputation
+    if (data.abuse) {
+      lines.push('IP REPUTATION ANALYSIS');
+      lines.push(`IP Address,${data.abuse.ip}`);
+      lines.push(`Abuse Confidence,${data.abuse.abuseConfidence}%`);
+      lines.push(`Is Abusive,${data.abuse.isAbusive ? 'Yes' : 'No'}`);
+      lines.push(`Country,${data.abuse.countryCode}`);
+      lines.push(`Usage Type,${data.abuse.usageType}`);
+      lines.push(`ISP,${data.abuse.isp}`);
+      lines.push(`Total Reports,${data.abuse.totalReports}`);
+      lines.push(`Whitelisted,${data.abuse.isWhitelisted ? 'Yes' : 'No'}`);
+      lines.push('');
+    }
+    
+    // Errors
+    if (data.errors && data.errors.length > 0) {
+      lines.push('ERRORS ENCOUNTERED');
+      data.errors.forEach((error: string) => {
+        lines.push(`,${error}`);
+      });
+      lines.push('');
+    }
+    
+    // Footer
+    lines.push('');
+    lines.push('Report generated by DomainInsight');
+    lines.push('https://nullr.com');
+    
+    return lines.join('\n');
+  };
+
+  const remainingSearches = Math.max(0, userStats.searchLimit - userStats.searchesUsed);
   const isFreeTierLimitReached = userStats.plan === 'free' && remainingSearches <= 0;
+  const isStarterLimitReached = userStats.plan === 'starter' && remainingSearches <= 0;
+  const isSearchDisabled = isFreeTierLimitReached || isStarterLimitReached;
 
   const formatDate = (dateString: string) => {
     if (!dateString || dateString === 'Unknown') return 'Unknown';
@@ -406,6 +914,10 @@ const DomainSearch = () => {
                 <span style={{ color: remainingSearches <= 3 ? '#dc2626' : '#4b5563', fontWeight: remainingSearches <= 3 ? '600' : 'normal' }}>
                   Free: {remainingSearches} searches left
                 </span>
+              ) : userStats.plan === 'starter' ? (
+                <span style={{ color: remainingSearches <= 10 ? '#d97706' : '#16a34a' }}>
+                  Starter: {remainingSearches} / 500 searches
+                </span>
               ) : (
                 <span style={{ color: '#16a34a' }}>
                   {userStats.plan.charAt(0).toUpperCase() + userStats.plan.slice(1)} Plan
@@ -413,16 +925,33 @@ const DomainSearch = () => {
               )}
             </div>
             
-            {userStats.plan === 'free' && (
+            {/* Show upgrade button based on plan and remaining searches */}
+            {(userStats.plan === 'free' || 
+              (userStats.plan === 'starter' && (remainingSearches <= 50 || remainingSearches === 0))) && (
               <button 
                 onClick={() => window.location.href = '/pricing'}
                 style={{
                   ...buttonStyle,
-                  background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                  background: userStats.plan === 'free' ? 'linear-gradient(to right, #2563eb, #4f46e5)' : 'linear-gradient(to right, #9333ea, #ec4899)',
                   color: '#ffffff'
                 }}
               >
-                Upgrade Now
+                {userStats.plan === 'free' ? 'Upgrade Now' : 'Upgrade to Pro'}
+              </button>
+            )}
+            
+            {/* Always show upgrade option for starter users in a different way */}
+            {userStats.plan === 'starter' && remainingSearches > 50 && (
+              <button 
+                onClick={() => window.location.href = '/pricing'}
+                style={{
+                  ...buttonStyle,
+                  background: 'none',
+                  border: '1px solid #9333ea',
+                  color: '#9333ea'
+                }}
+              >
+                Upgrade to Pro
               </button>
             )}
             
@@ -470,6 +999,35 @@ const DomainSearch = () => {
               {' '}You have {userStats.searchLimit} free searches to get started. 
               Try searching for any domain to see comprehensive WHOIS, DNS, and security data.
             </p>
+          </div>
+        )}
+
+        {/* Upgrade Status Messages */}
+        {upgradeStatus && (
+          <div style={{
+            background: upgradeStatus === 'success' ? '#dcfce7' : 
+                       upgradeStatus === 'error' ? '#fef2f2' : '#fefce8',
+            border: upgradeStatus === 'success' ? '1px solid #86efac' : 
+                    upgradeStatus === 'error' ? '1px solid #fecaca' : '1px solid #fde047',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px'
+          }}>
+            {upgradeStatus === 'success' && (
+              <p style={{ color: '#15803d', margin: 0 }}>
+                🎉 <strong>Account upgraded successfully!</strong> You now have access to your new plan features.
+              </p>
+            )}
+            {upgradeStatus === 'manual_needed' && (
+              <p style={{ color: '#a16207', margin: 0 }}>
+                ✅ <strong>Payment successful!</strong> Your account upgrade is being processed. Refresh the page in a moment.
+              </p>
+            )}
+            {upgradeStatus === 'error' && (
+              <p style={{ color: '#dc2626', margin: 0 }}>
+                ⚠️ <strong>Payment completed but upgrade failed.</strong> Please contact support with your payment confirmation.
+              </p>
+            )}
           </div>
         )}
 
@@ -531,13 +1089,13 @@ const DomainSearch = () => {
             
             <button
               onClick={handleSearch}
-              disabled={loading || isFreeTierLimitReached || !domain.trim()}
+              disabled={loading || isSearchDisabled || !domain.trim()}
               style={{
                 ...buttonStyle,
-                background: loading || isFreeTierLimitReached || !domain.trim() ? '#9ca3af' : '#2563eb',
+                background: loading || isSearchDisabled || !domain.trim() ? '#9ca3af' : '#2563eb',
                 color: '#ffffff',
                 padding: '12px 24px',
-                cursor: loading || isFreeTierLimitReached || !domain.trim() ? 'not-allowed' : 'pointer'
+                cursor: loading || isSearchDisabled || !domain.trim() ? 'not-allowed' : 'pointer'
               }}
             >
               {loading ? (
@@ -576,7 +1134,7 @@ const DomainSearch = () => {
               marginTop: '16px',
               padding: '16px',
               background: '#fefce8',
-              border: '1px solid #fde047',    // Fixed: removed extra quote
+              border: '1px solid #fde047',
               borderRadius: '8px',
               textAlign: 'center'
             }}>
@@ -593,8 +1151,95 @@ const DomainSearch = () => {
                     marginLeft: '4px'
                   }}
                 >
+                  Upgrade to Starter
+                </button> for 500 monthly searches!
+              </p>
+            </div>
+          )}
+
+          {/* Starter Plan Limit Warning */}
+          {userStats.plan === 'starter' && remainingSearches <= 0 && (
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#dc2626', margin: 0 }}>
+                You've reached your Starter plan limit (500 searches). 
+                <button 
+                  onClick={() => window.location.href = '/pricing'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    marginLeft: '4px'
+                  }}
+                >
                   Upgrade to Pro
                 </button> for unlimited searches!
+              </p>
+            </div>
+          )}
+
+          {/* Low searches warning for Free users */}
+          {userStats.plan === 'free' && !isFreeTierLimitReached && remainingSearches <= 3 && remainingSearches > 0 && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#ea580c', fontSize: '14px', margin: 0 }}>
+                Only {remainingSearches} searches remaining. 
+                <button 
+                  onClick={() => window.location.href = '/pricing'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    marginLeft: '4px'
+                  }}
+                >
+                  Upgrade now
+                </button> to continue researching.
+              </p>
+            </div>
+          )}
+
+          {/* Low searches warning for Starter users */}
+          {userStats.plan === 'starter' && remainingSearches <= 50 && remainingSearches > 0 && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: '#faf5ff',
+              border: '1px solid #e9d5ff',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#7c3aed', fontSize: '14px', margin: 0 }}>
+                Only {remainingSearches} searches remaining this month. 
+                <button 
+                  onClick={() => window.location.href = '/pricing'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    marginLeft: '4px'
+                  }}
+                >
+                  Upgrade to Pro
+                </button> for unlimited searches.
               </p>
             </div>
           )}
@@ -929,6 +1574,7 @@ const DomainSearch = () => {
                   </button>
                   
                   <button 
+                    onClick={exportReport}
                     disabled={userStats.plan === 'free'}
                     style={{
                       ...buttonStyle,
@@ -942,10 +1588,11 @@ const DomainSearch = () => {
                   >
                     <Download style={{ width: '16px', height: '16px' }} />
                     <span>Export Report</span>
-                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Pro)</span>}
+                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
                   </button>
                   
                   <button 
+                    onClick={showHistoricalData}
                     disabled={userStats.plan === 'free'}
                     style={{
                       ...buttonStyle,
@@ -959,7 +1606,7 @@ const DomainSearch = () => {
                   >
                     <Clock style={{ width: '16px', height: '16px' }} />
                     <span>Historical Data</span>
-                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Pro)</span>}
+                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
                   </button>
                 </div>
               </div>
@@ -981,7 +1628,15 @@ const DomainSearch = () => {
                 <div>
                   <span style={{ color: '#4b5563' }}>Remaining searches:</span>
                   <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>
-                    {userStats.plan === 'free' ? remainingSearches : 'Unlimited'}
+                    {userStats.plan === 'free' ? (
+                      `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)}`
+                    ) : userStats.plan === 'starter' ? (
+                      `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)} / 500`
+                    ) : userStats.plan === 'pro' || userStats.plan === 'enterprise' ? (
+                      'Unlimited'
+                    ) : (
+                      `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)} / ${userStats.searchLimit}`
+                    )}
                   </p>
                 </div>
                 <div>
@@ -1036,7 +1691,6 @@ const DomainSearch = () => {
       </div>
 
       {/* Add keyframe animation for spinner */}
-              {/* Add keyframe animation for spinner */}
       <style jsx>{`
         @keyframes spin {
           from { transform: rotate(0deg); }

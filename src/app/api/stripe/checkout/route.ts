@@ -1,4 +1,4 @@
-// src/app/api/stripe/checkout/route.ts
+// src/app/api/stripe/checkout/route.ts - FIXED for Next.js 15
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import Stripe from 'stripe';
@@ -13,7 +13,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth(); // Add await here
     const { plan } = await request.json();
     
     if (!userId) {
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 // Optional: GET endpoint to retrieve checkout session details
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth(); // Add await here
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('session_id');
     

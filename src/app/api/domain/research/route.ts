@@ -1,11 +1,11 @@
-// src/app/api/domain/research/route.ts - WITH REAL CLERK AUTH
+// src/app/api/domain/research/route.ts - FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth(); // Add await here for Next.js 15
     
     if (!userId) {
       return NextResponse.json({ error: 'Please sign in to search domains' }, { status: 401 });
@@ -45,10 +45,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check search limits
-    if (user.plan === 'free' && user.searchesUsed >= user.searchLimit) {
+    // Check search limits for ALL plans
+    if (user.searchesUsed >= user.searchLimit) {
       return NextResponse.json({ 
-        error: 'Search limit reached. Upgrade to Pro for unlimited searches.' 
+        error: `Search limit reached. You have used ${user.searchesUsed}/${user.searchLimit} searches.` 
       }, { status: 429 });
     }
 
@@ -73,32 +73,59 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user search count (only for non-cached results)
-    if (!results.cached && user.plan === 'free') {
+    let updatedUser = user;
+    if (!results.cached) {
       try {
-        await prisma.user.update({
+        updatedUser = await prisma.user.update({
           where: { id: user.id },
           data: {
             searchesUsed: user.searchesUsed + 1
           }
         });
-        console.log(`📊 Updated search count for user ${user.email}: ${user.searchesUsed + 1}/${user.searchLimit}`);
+        console.log(`📊 Updated search count for user ${user.email}: ${updatedUser.searchesUsed}/${updatedUser.searchLimit}`);
       } catch (updateError) {
         console.error('❌ Failed to update search count:', updateError);
+        // Use original user data if update fails
+        updatedUser = { ...user, searchesUsed: user.searchesUsed + 1 };
       }
     }
 
-    // Calculate remaining searches
-    const updatedSearchesUsed = results.cached ? user.searchesUsed : user.searchesUsed + 1;
-    const remainingSearches = user.plan === 'free' 
-      ? Math.max(0, user.searchLimit - updatedSearchesUsed)
-      : 999999;
+    // Store historical snapshot for future historical data
+    try {
+      const historicalSnapshot = {
+        domain: domain,
+        whois: results.whois,
+        security: results.security,
+        dns: results.dns,
+        abuse: results.abuse,
+        searchDate: new Date().toISOString(),
+        userPlan: updatedUser.plan
+      };
+
+      await prisma.domainHistory.create({
+        data: {
+          domain: domain,
+          snapshot: historicalSnapshot
+        }
+      });
+      
+      console.log(`📊 Historical snapshot saved for ${domain}`);
+    } catch (historyError) {
+      console.error('❌ Failed to save historical snapshot:', historyError);
+    }
+
+    // Calculate remaining searches - FIX: Handle all plans correctly
+    const remainingSearches = Math.max(0, updatedUser.searchLimit - updatedUser.searchesUsed);
 
     return NextResponse.json({
       ...results,
       remainingSearches: remainingSearches,
-      userPlan: user.plan,
-      userEmail: user.email,
-      searchStored: true
+      userPlan: updatedUser.plan,
+      userEmail: updatedUser.email,
+      searchStored: true,
+      // Add these for debugging
+      searchesUsed: updatedUser.searchesUsed,
+      searchLimit: updatedUser.searchLimit
     });
     
   } catch (error) {
@@ -415,7 +442,7 @@ class DomainResearchService {
   
   private getMockWhoisData(domain: string) {
     return {
-      registrar: 'We couldn’t fetch this information right now',
+      registrar: 'We couldn`t fetch this information right now',
       registrationDate: 'XXXX-XX-XX',
       expirationDate: 'XXXX-XX-XX',
       nameServers: ['no data', 'no data'],

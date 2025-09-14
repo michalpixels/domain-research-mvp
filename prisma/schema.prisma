@@ -55,3 +55,13 @@ model SavedDomain {
   @@unique([userId, domain])
   @@map("saved_domains")
 }
+
+model DomainHistory {
+  id        String   @id @default(cuid())
+  domain    String
+  snapshot  Json     // Store domain data snapshot
+  createdAt DateTime @default(now())
+  
+  @@index([domain, createdAt])
+  @@map("domain_history")
+}

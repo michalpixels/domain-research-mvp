@@ -1,4 +1,4 @@
-// src/app/api/stripe/webhook/route.ts
+// src/app/api/stripe/webhook/route.ts - FIXED for Next.js 15
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
@@ -17,13 +17,21 @@ export async function POST(request: NextRequest) {
   const body = await request.text();
   
   // Check if Stripe is configured
-  if (!stripe || !webhookSecret) {
+  if (!stripe) {
     return NextResponse.json({ 
-      error: 'Webhook not configured' 
+      error: 'Stripe not configured' 
     }, { status: 503 });
   }
   
-  // Fix for Next.js 15 - get signature from request headers directly
+  // In local development, webhook secret might not be set
+  if (!webhookSecret) {
+    console.log('⚠️ Webhook secret not configured - skipping webhook verification (local development)');
+    return NextResponse.json({ 
+      message: 'Webhook secret not configured - use dashboard for manual upgrade' 
+    }, { status: 200 });
+  }
+  
+  // Get signature from request headers
   const signature = request.headers.get('stripe-signature');
   
   if (!signature) {
