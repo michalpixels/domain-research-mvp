@@ -1,7 +1,9 @@
+// src/components/DomainSearch.tsx - SIMPLIFIED CLIENT COMPONENT
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Search, Globe, Shield, Clock, Download, Star, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Globe, Shield, Clock, Download, Star, AlertCircle, CheckCircle, XCircle, User, LogOut } from 'lucide-react';
+import { useUser, SignInButton, SignOutButton } from '@clerk/nextjs';
 
 interface DomainResults {
   domain: string;
@@ -13,30 +15,38 @@ interface DomainResults {
   errors?: string[];
   remainingSearches?: number;
   userPlan?: string;
+  userEmail?: string;
 }
 
 const DomainSearch = () => {
+  const { user, isSignedIn, isLoaded } = useUser();
   const [domain, setDomain] = useState('');
   const [results, setResults] = useState<DomainResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [user, setUser] = useState({ 
+  const [userStats, setUserStats] = useState({ 
     plan: 'free', 
     searchesUsed: 0, 
-    searchLimit: 20 
+    searchLimit: 20,
+    email: ''
   });
 
-  // Load user subscription data on component mount
+  // Load user subscription data when user signs in
   useEffect(() => {
-    loadUserData();
-  }, []);
+    if (isLoaded && isSignedIn) {
+      loadUserData();
+    }
+  }, [isLoaded, isSignedIn]);
 
   const loadUserData = async () => {
     try {
       const response = await fetch('/api/user/subscription');
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
+        setUserStats(userData);
+        console.log('User data loaded:', userData);
+      } else if (response.status === 401) {
+        console.log('User not authenticated');
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
@@ -44,13 +54,18 @@ const DomainSearch = () => {
   };
 
   const handleSearch = async () => {
+    if (!isSignedIn) {
+      setError('Please sign in to search domains');
+      return;
+    }
+
     if (!domain.trim()) {
       setError('Please enter a domain name');
       return;
     }
     
     // Basic domain validation
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/;
     if (!domainRegex.test(domain.trim())) {
       setError('Please enter a valid domain name (e.g., example.com)');
       return;
@@ -71,6 +86,10 @@ const DomainSearch = () => {
       const data = await response.json();
       
       if (!response.ok) {
+        if (response.status === 401) {
+          setError('Please sign in to search domains');
+          return;
+        }
         throw new Error(data.error || 'Search failed');
       }
       
@@ -78,7 +97,7 @@ const DomainSearch = () => {
       
       // Update user data with remaining searches
       if (data.remainingSearches !== undefined) {
-        setUser(prev => ({
+        setUserStats(prev => ({
           ...prev,
           searchesUsed: prev.searchLimit - data.remainingSearches,
           plan: data.userPlan || prev.plan
@@ -94,7 +113,7 @@ const DomainSearch = () => {
   };
 
   const saveDomain = async () => {
-    if (!results) return;
+    if (!results || !isSignedIn) return;
     
     try {
       const response = await fetch('/api/domains/saved', {
@@ -119,8 +138,8 @@ const DomainSearch = () => {
     }
   };
 
-  const remainingSearches = user.searchLimit - user.searchesUsed;
-  const isFreeTierLimitReached = user.plan === 'free' && remainingSearches <= 0;
+  const remainingSearches = userStats.searchLimit - userStats.searchesUsed;
+  const isFreeTierLimitReached = userStats.plan === 'free' && remainingSearches <= 0;
 
   const formatDate = (dateString: string) => {
     if (!dateString || dateString === 'Unknown') return 'Unknown';
@@ -138,6 +157,77 @@ const DomainSearch = () => {
       <CheckCircle className="w-6 h-6 text-green-600" />;
   };
 
+  // Loading state
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Not signed in state
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <Globe className="w-8 h-8 text-blue-600" />
+                <span className="text-2xl font-bold text-gray-900">DomainInsight</span>
+              </div>
+              <SignInButton mode="modal">
+                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                  Sign In
+                </button>
+              </SignInButton>
+            </div>
+          </div>
+        </div>
+
+        {/* Sign In Required Message */}
+        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <Shield className="w-16 h-16 text-blue-600 mx-auto mb-6" />
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Sign In Required
+            </h2>
+            <p className="text-xl text-gray-600 mb-8">
+              Please sign in to access domain research features and track your search history.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="text-center">
+                <Star className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900">Free Account</h3>
+                <p className="text-gray-600">20 searches per month</p>
+              </div>
+              <div className="text-center">
+                <Globe className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900">Search History</h3>
+                <p className="text-gray-600">Track all your research</p>
+              </div>
+              <div className="text-center">
+                <Shield className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                <h3 className="font-semibold text-gray-900">Saved Domains</h3>
+                <p className="text-gray-600">Build your portfolio</p>
+              </div>
+            </div>
+
+            <SignInButton mode="modal">
+              <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors font-semibold text-lg">
+                Sign In to Get Started
+              </button>
+            </SignInButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Signed in - show main app
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -151,18 +241,18 @@ const DomainSearch = () => {
             
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
-                {user.plan === 'free' ? (
+                {userStats.plan === 'free' ? (
                   <span className={remainingSearches <= 3 ? 'text-red-600 font-medium' : ''}>
                     Free: {remainingSearches} searches left
                   </span>
                 ) : (
                   <span className="text-green-600">
-                    {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)} Plan
+                    {userStats.plan.charAt(0).toUpperCase() + userStats.plan.slice(1)} Plan
                   </span>
                 )}
               </div>
               
-              {user.plan === 'free' && (
+              {userStats.plan === 'free' && (
                 <button 
                   onClick={() => window.location.href = '/pricing'}
                   className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors"
@@ -170,12 +260,39 @@ const DomainSearch = () => {
                   Upgrade to Pro
                 </button>
               )}
+              
+              {/* Auth Button */}
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <User className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm text-gray-600 hidden sm:inline">
+                    {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+                  </span>
+                </div>
+                <SignOutButton>
+                  <button className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors">
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm">Sign Out</span>
+                  </button>
+                </SignOutButton>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Welcome Message for New Users */}
+        {user && userStats.searchesUsed === 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-blue-800">
+              <strong>Welcome {user.firstName || 'to DomainInsight'}!</strong> 
+              {' '}You have {userStats.searchLimit} free searches to get started. 
+              Try searching for any domain to see comprehensive WHOIS, DNS, and security data.
+            </p>
+          </div>
+        )}
+
         {/* Search Section */}
         <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
           <div className="text-center mb-6">
@@ -252,7 +369,7 @@ const DomainSearch = () => {
           )}
         </div>
 
-        {/* Results Section */}
+        {/* Results Section - Keep all existing result display code */}
         {results && (
           <div className="space-y-6">
             {/* Cache indicator */}
@@ -358,7 +475,7 @@ const DomainSearch = () => {
                   <p className="text-gray-500">Security data unavailable</p>
                 )}
                 
-                {user.plan === 'free' && (
+                {userStats.plan === 'free' && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-blue-800 text-sm">
                       <Star className="w-4 h-4 inline mr-1" />
@@ -441,7 +558,7 @@ const DomainSearch = () => {
                     )}
                   </div>
                   
-                  {user.plan === 'free' && (
+                  {userStats.plan === 'free' && (
                     <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <p className="text-purple-800 text-sm">
                         <Star className="w-4 h-4 inline mr-1" />
@@ -506,28 +623,28 @@ const DomainSearch = () => {
                   
                   <button 
                     className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      user.plan === 'free' 
+                      userStats.plan === 'free' 
                         ? 'border border-gray-300 text-gray-500 cursor-not-allowed' 
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
-                    disabled={user.plan === 'free'}
+                    disabled={userStats.plan === 'free'}
                   >
                     <Download className="w-4 h-4" />
                     <span>Export Report</span>
-                    {user.plan === 'free' && <span className="text-xs">(Pro)</span>}
+                    {userStats.plan === 'free' && <span className="text-xs">(Pro)</span>}
                   </button>
                   
                   <button 
                     className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      user.plan === 'free' 
+                      userStats.plan === 'free' 
                         ? 'border border-gray-300 text-gray-500 cursor-not-allowed' 
                         : 'bg-green-600 text-white hover:bg-green-700'
                     }`}
-                    disabled={user.plan === 'free'}
+                    disabled={userStats.plan === 'free'}
                   >
                     <Clock className="w-4 h-4" />
                     <span>Historical Data</span>
-                    {user.plan === 'free' && <span className="text-xs">(Pro)</span>}
+                    {userStats.plan === 'free' && <span className="text-xs">(Pro)</span>}
                   </button>
                 </div>
               </div>
@@ -535,23 +652,21 @@ const DomainSearch = () => {
 
             {/* Additional Info */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Additional Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <h2 className="text-xl font-semibold mb-4">Search Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Search performed:</span>
-                  <span className="font-medium ml-2">{new Date().toLocaleString()}</span>
+                  <p className="font-medium">{new Date().toLocaleString()}</p>
                 </div>
-                {results.cached && (
-                  <div>
-                    <span className="text-gray-600">Data cached:</span>
-                    <span className="font-medium ml-2">Yes (faster results)</span>
-                  </div>
-                )}
                 <div>
                   <span className="text-gray-600">Remaining searches:</span>
-                  <span className="font-medium ml-2">
-                    {user.plan === 'free' ? remainingSearches : 'Unlimited'}
-                  </span>
+                  <p className="font-medium">
+                    {userStats.plan === 'free' ? remainingSearches : 'Unlimited'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-600">Account:</span>
+                  <p className="font-medium">{userStats.email}</p>
                 </div>
               </div>
             </div>
@@ -559,41 +674,18 @@ const DomainSearch = () => {
         )}
 
         {/* Pricing CTA */}
-        {user.plan === 'free' && (
+        {userStats.plan === 'free' && (
           <div className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white p-8 text-center">
             <h2 className="text-2xl font-bold mb-2">Ready to unlock full potential?</h2>
             <p className="text-blue-100 mb-6">
               Get unlimited searches, historical data, API access, and more with Pro
             </p>
             
-            <div className="pricing-container">
-              <div className="pricing-card">
-                <h3 className="font-semibold mb-2">Starter - $29/month</h3>
-                <ul className="text-sm text-blue-100 space-y-1">
-                  <li>500 searches/month</li>
-                  <li>Full security reports</li>
-                  <li>CSV exports</li>
-                  <li>Email support</li>
-                </ul>
-              </div>
-              
-              <div className="pricing-card featured">
-                <h3 className="font-semibold mb-2">Pro - $99/month ⭐</h3>
-                <ul className="text-sm text-blue-100 space-y-1">
-                  <li>Unlimited searches</li>
-                  <li>Historical data access</li>
-                  <li>API access</li>
-                  <li>Bulk processing</li>
-                  <li>Priority support</li>
-                </ul>
-              </div>
-            </div>
-            
             <button 
               onClick={() => window.location.href = '/pricing'}
-              className="cta-button"
+              className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg"
             >
-              Start Free Trial
+              Upgrade Now
             </button>
           </div>
         )}

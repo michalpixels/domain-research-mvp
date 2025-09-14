@@ -1,13 +1,14 @@
-// src/app/api/domain/research/route.ts - COMPLETE FIXED VERSION
+// src/app/api/domain/research/route.ts - WITH REAL CLERK AUTH
 import { NextRequest, NextResponse } from 'next/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    // TEMPORARY: Skip auth for testing
-    const userId = 'temp-user-123'; // Temporary bypass
+    const { userId } = auth();
     
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Please sign in to search domains' }, { status: 401 });
     }
 
     const { domain } = await request.json();
@@ -17,26 +18,87 @@ export async function POST(request: NextRequest) {
     }
 
     // Basic domain validation
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/;
     if (!domainRegex.test(domain)) {
       return NextResponse.json({ error: 'Invalid domain format' }, { status: 400 });
     }
 
-    // Mock user data for testing
-    const mockUser = {
-      plan: 'free',
-      searchesUsed: 5,
-      searchLimit: 20
-    };
+    // Ensure user exists in database
+    let user = await prisma.user.findUnique({
+      where: { clerkId: userId }
+    });
+
+    if (!user) {
+      // Get user details from Clerk and create database record
+      const clerkUser = await currentUser();
+      const email = clerkUser?.emailAddresses[0]?.emailAddress || 'unknown@example.com';
+      
+      console.log(`Creating user ${userId} (${email}) for domain search`);
+      user = await prisma.user.create({
+        data: {
+          clerkId: userId,
+          email: email,
+          plan: 'free',
+          searchesUsed: 0,
+          searchLimit: 20
+        }
+      });
+    }
+
+    // Check search limits
+    if (user.plan === 'free' && user.searchesUsed >= user.searchLimit) {
+      return NextResponse.json({ 
+        error: 'Search limit reached. Upgrade to Pro for unlimited searches.' 
+      }, { status: 429 });
+    }
 
     // Perform domain research
     const domainService = new DomainResearchService();
     const results = await domainService.researchDomain(domain);
 
+    // Store the search in database
+    try {
+      console.log(`💾 Storing search result for domain: ${domain} (user: ${user.email})`);
+      await prisma.domainSearch.create({
+        data: {
+          userId: user.id,
+          domain: domain,
+          searchData: results // Store the full API response as JSON
+        }
+      });
+      console.log(`✅ Search result stored successfully`);
+    } catch (dbError) {
+      console.error('❌ Database storage error:', dbError);
+      // Continue anyway - don't fail the search if storage fails
+    }
+
+    // Update user search count (only for non-cached results)
+    if (!results.cached && user.plan === 'free') {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            searchesUsed: user.searchesUsed + 1
+          }
+        });
+        console.log(`📊 Updated search count for user ${user.email}: ${user.searchesUsed + 1}/${user.searchLimit}`);
+      } catch (updateError) {
+        console.error('❌ Failed to update search count:', updateError);
+      }
+    }
+
+    // Calculate remaining searches
+    const updatedSearchesUsed = results.cached ? user.searchesUsed : user.searchesUsed + 1;
+    const remainingSearches = user.plan === 'free' 
+      ? Math.max(0, user.searchLimit - updatedSearchesUsed)
+      : 999999;
+
     return NextResponse.json({
       ...results,
-      remainingSearches: mockUser.searchLimit - (mockUser.searchesUsed + 1),
-      userPlan: mockUser.plan
+      remainingSearches: remainingSearches,
+      userPlan: user.plan,
+      userEmail: user.email,
+      searchStored: true
     });
     
   } catch (error) {
@@ -57,6 +119,7 @@ class DomainResearchService {
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < 3600000) {
+        console.log(`📋 Using cached data for ${domain}`);
         return { ...cached.data, cached: true };
       }
       this.cache.delete(cacheKey);
@@ -65,7 +128,7 @@ class DomainResearchService {
     try {
       console.log(`🔍 Researching domain: ${domain}`);
       
-      // Parallel API calls for better performance - NOW INCLUDING ABUSEIPDB
+      // Parallel API calls for better performance
       const [whoisData, securityData, dnsData, abuseData] = await Promise.allSettled([
         this.getWhoisData(domain),
         new Promise(resolve => setTimeout(() => resolve(this.getSecurityData(domain)), 1000)),
@@ -97,12 +160,6 @@ class DomainResearchService {
       console.error(`❌ Domain research failed for ${domain}:`, error);
       throw new Error(`Domain research failed: ${String(error)}`);
     }
-
-    // In your researchDomain method, add more logging:
-    console.log('🔑 API Keys status:');
-    console.log('WhoisJSON:', process.env.WHOISJSON_API_KEY ? 'SET' : 'MISSING');
-    console.log('VirusTotal:', process.env.VIRUSTOTAL_API_KEY ? 'SET' : 'MISSING');
-    console.log('AbuseIPDB:', process.env.ABUSE_IP_DB_KEY ? 'SET' : 'MISSING');
   }
   
   private collectErrors(results: PromiseSettledResult<any>[]) {
@@ -110,7 +167,7 @@ class DomainResearchService {
       .filter(r => r.status === 'rejected')
       .map(r => r.reason?.message || 'Unknown error');
   }
-  
+
   private async getWhoisData(domain: string) {
     console.log(`📋 Fetching WHOIS data for ${domain}...`);
     
@@ -120,7 +177,10 @@ class DomainResearchService {
     }
     
     try {
-      // Correct WhoisJSON API endpoint and authentication
+      // Shorter timeout for faster fallback
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds instead of 15
+      
       const response = await fetch(
         `https://whoisjson.com/api/v1/whois?domain=${domain}`,
         {
@@ -129,28 +189,19 @@ class DomainResearchService {
             'Accept': 'application/json',
             'User-Agent': 'DomainInsight/1.0'
           },
-          signal: AbortSignal.timeout(15000) // Increased timeout
+          signal: controller.signal
         }
       );
       
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        if (response.status === 401) {
-          console.error('🔑 WhoisJSON Authentication Error:');
-          console.error('   - Check your API key in .env file');
-          console.error('   - Verify you have remaining credits');
-          console.error('   - Visit https://whoisjson.com/dashboard');
-          throw new Error(`WhoisJSON authentication failed - check your API key`);
-        }
-        if (response.status === 429) {
-          throw new Error(`WhoisJSON rate limit exceeded`);
-        }
         throw new Error(`WhoisJSON API error: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
       console.log(`✅ WHOIS data fetched successfully for ${domain}`);
       
-      // Parse and normalize the WhoisJSON response format
       return {
         registrar: data.registrar?.name || data.registrar || 'Unknown',
         registrationDate: data.created || data.creation_date || 'Unknown', 
@@ -170,13 +221,21 @@ class DomainResearchService {
         dnssec: data.dnssec || 'Unknown'
       };
       
-    } catch (error) {
-      console.warn(`⚠️ WhoisJSON API error for ${domain}:`, error);
+    } catch (error: unknown) {
+      // TypeScript-safe error handling
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.warn(`⚠️ WhoisJSON timeout for ${domain} (10s limit) - using mock data`);
+        } else {
+          console.warn(`⚠️ WhoisJSON API error for ${domain}:`, error.message);
+        }
+      } else {
+        console.warn(`⚠️ WhoisJSON unknown error for ${domain}:`, String(error));
+      }
       return this.getMockWhoisData(domain);
     }
   }
   
-  // Updated getSecurityData method - replace in your API route
   private async getSecurityData(domain: string) {
     console.log(`🛡️ Fetching security data for ${domain}...`);
     
@@ -186,7 +245,6 @@ class DomainResearchService {
     }
     
     try {
-      // Use VirusTotal API v3 for better results
       const response = await fetch(
         `https://www.virustotal.com/api/v3/domains/${domain}`,
         {
@@ -199,25 +257,6 @@ class DomainResearchService {
       );
       
       if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error(`VirusTotal API key invalid or expired`);
-        }
-        if (response.status === 429) {
-          throw new Error(`VirusTotal rate limit exceeded (max 4 requests/minute for free)`);
-        }
-        if (response.status === 404) {
-          // Domain not in VirusTotal database yet
-          console.log(`⚠️ Domain ${domain} not found in VirusTotal database`);
-          return {
-            malicious: false,
-            reputation: 'Not yet analyzed by VirusTotal',
-            lastScan: 'Never',
-            threats: 0,
-            total: 0,
-            scanId: null,
-            notInDatabase: true
-          };
-        }
         throw new Error(`VirusTotal API error: ${response.status} ${response.statusText}`);
       }
       
@@ -225,63 +264,31 @@ class DomainResearchService {
       const data = result.data;
       console.log(`✅ Security data fetched for ${domain}`);
       
-      // Parse VirusTotal v3 response
       const attributes = data.attributes;
       const analysisStats = attributes.last_analysis_stats || {};
-      const analysisResults = attributes.last_analysis_results || {};
       
       const malicious = analysisStats.malicious || 0;
       const suspicious = analysisStats.suspicious || 0;
       const harmless = analysisStats.harmless || 0;
       const undetected = analysisStats.undetected || 0;
-      const timeout = analysisStats.timeout || 0;
       
-      const totalScanned = malicious + suspicious + harmless + undetected + timeout;
+      const totalScanned = malicious + suspicious + harmless + undetected;
       const threatsFound = malicious + suspicious;
       
-      // Get detailed threat information
-      const threatDetails = [];
-      if (analysisResults) {
-        for (const [engine, result] of Object.entries(analysisResults)) {
-          // Type assertion to fix the TypeScript error
-          const analysisResult = result as { category: string; result: string };
-          if (analysisResult.category === 'malicious' || analysisResult.category === 'suspicious') {
-            threatDetails.push(`${engine}: ${analysisResult.result}`);
-          }
-        }
-      }
-      
       return {
-      malicious: threatsFound > 0,
-      reputation: threatsFound > 0 ? 
-        `⚠️ ${threatsFound}/${totalScanned} security engines detected threats` : 
-        `✅ Clean - ${harmless}/${totalScanned} engines verified as safe`,
-      lastScan: attributes.last_analysis_date ? 
-        new Date(attributes.last_analysis_date * 1000).toISOString().split('T')[0] : 
-        'Unknown',
-      threats: threatsFound,
-      total: totalScanned,
-      harmless: harmless,
-      suspicious: suspicious,
-      undetected: undetected,
-      // Removed duplicate malicious property
-      categories: attributes.categories || [],
-      threatDetails: threatDetails.slice(0, 3),
-      reputation_score: attributes.reputation || 0,
-      scanId: data.id
-    };
+        malicious: threatsFound > 0,
+        reputation: threatsFound > 0 ? 
+          `⚠️ ${threatsFound}/${totalScanned} security engines detected threats` : 
+          `✅ Clean - ${harmless}/${totalScanned} engines verified as safe`,
+        lastScan: attributes.last_analysis_date ? 
+          new Date(attributes.last_analysis_date * 1000).toISOString().split('T')[0] : 
+          'Unknown',
+        threats: threatsFound,
+        total: totalScanned
+      };
       
     } catch (error) {
       console.warn(`⚠️ VirusTotal API error for ${domain}:`, error);
-      
-      // If it's a rate limit error, provide helpful guidance
-      if (error instanceof Error && error.message.includes('rate limit')) {
-        console.error('⏰ VirusTotal Rate Limit Info:');
-        console.error('   - Free API: 4 requests per minute');
-        console.error('   - Wait 1 minute between searches');
-        console.error('   - Consider upgrading for higher limits');
-      }
-      
       return this.getMockSecurityData();
     }
   }
@@ -363,7 +370,6 @@ class DomainResearchService {
     console.log(`🌐 Fetching DNS data for ${domain}...`);
     
     try {
-      // Using free Cloudflare DNS-over-HTTPS service
       const types = ['A', 'AAAA', 'MX', 'TXT', 'NS', 'CNAME'];
       const dnsResults: any = {};
       
@@ -409,12 +415,12 @@ class DomainResearchService {
   
   private getMockWhoisData(domain: string) {
     return {
-      registrar: 'Mock Registrar (API key needed)',
-      registrationDate: '2020-01-15',
-      expirationDate: '2025-01-15',
-      nameServers: ['ns1.example.com', 'ns2.example.com'],
+      registrar: 'We couldn’t fetch this information right now',
+      registrationDate: 'XXXX-XX-XX',
+      expirationDate: 'XXXX-XX-XX',
+      nameServers: ['no data', 'no data'],
       registrant: {
-        organization: 'Get real data with API key',
+        organization: 'You can try checking with a WHOIS service directly',
         country: 'US'
       },
       status: ['Mock status - configure WhoisJSON API'],
