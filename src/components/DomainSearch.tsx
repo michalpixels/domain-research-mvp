@@ -1,4 +1,4 @@
-// src/components/DomainSearch.tsx - SIMPLIFIED CLIENT COMPONENT
+// src/components/DomainSearch.tsx - WITH CONSISTENT INLINE STYLING
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -151,17 +151,54 @@ const DomainSearch = () => {
   };
 
   const SecurityIcon = ({ malicious }: { malicious: boolean | null }) => {
-    if (malicious === null) return <AlertCircle className="w-6 h-6 text-yellow-600" />;
+    if (malicious === null) return <AlertCircle style={{ width: '24px', height: '24px', color: '#d97706' }} />;
     return malicious ? 
-      <XCircle className="w-6 h-6 text-red-600" /> : 
-      <CheckCircle className="w-6 h-6 text-green-600" />;
+      <XCircle style={{ width: '24px', height: '24px', color: '#dc2626' }} /> : 
+      <CheckCircle style={{ width: '24px', height: '24px', color: '#16a34a' }} />;
+  };
+
+  const buttonStyle = {
+    padding: '12px 24px',
+    borderRadius: '8px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
+  };
+
+  const cardStyle = {
+    background: '#ffffff',
+    borderRadius: '16px',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #f3f4f6',
+    padding: '24px',
+    marginBottom: '24px'
   };
 
   // Loading state
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #e0e7ff 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          border: '3px solid #e5e7eb',
+          borderTop: '3px solid #2563eb',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
       </div>
     );
   }
@@ -169,55 +206,134 @@ const DomainSearch = () => {
   // Not signed in state
   if (!isSignedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #e0e7ff 100%)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
         {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-6xl mx-auto px-4 py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Globe className="w-8 h-8 text-blue-600" />
-                <span className="text-2xl font-bold text-gray-900">DomainInsight</span>
-              </div>
-              <SignInButton mode="modal">
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Sign In
-                </button>
-              </SignInButton>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 50
+        }}>
+          <div style={{
+            maxWidth: '1152px',
+            margin: '0 auto',
+            padding: '16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
+              <span style={{
+                fontSize: '24px',
+                fontWeight: '700',
+                background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                color: 'transparent'
+              }}>
+                DomainInsight
+              </span>
             </div>
+            <SignInButton mode="modal">
+              <button style={{
+                ...buttonStyle,
+                background: '#2563eb',
+                color: '#ffffff'
+              }}>
+                Sign In
+              </button>
+            </SignInButton>
           </div>
         </div>
 
         {/* Sign In Required Message */}
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <div className="bg-white rounded-xl shadow-lg p-8">
-            <Shield className="w-16 h-16 text-blue-600 mx-auto mb-6" />
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+        <div style={{
+          maxWidth: '896px',
+          margin: '0 auto',
+          padding: '64px 16px',
+          textAlign: 'center'
+        }}>
+          <div style={cardStyle}>
+            <Shield style={{ 
+              width: '64px', 
+              height: '64px', 
+              color: '#2563eb', 
+              margin: '0 auto 24px auto' 
+            }} />
+            <h2 style={{
+              fontSize: '36px',
+              fontWeight: '700',
+              color: '#111827',
+              marginBottom: '16px',
+              margin: '0 0 16px 0'
+            }}>
               Sign In Required
             </h2>
-            <p className="text-xl text-gray-600 mb-8">
+            <p style={{
+              fontSize: '20px',
+              color: '#4b5563',
+              marginBottom: '32px',
+              margin: '0 0 32px 0'
+            }}>
               Please sign in to access domain research features and track your search history.
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="text-center">
-                <Star className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-900">Free Account</h3>
-                <p className="text-gray-600">20 searches per month</p>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '24px',
+              marginBottom: '32px'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <Star style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  color: '#16a34a', 
+                  margin: '0 auto 8px auto' 
+                }} />
+                <h3 style={{ fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>Free Account</h3>
+                <p style={{ color: '#4b5563', margin: 0 }}>20 searches per month</p>
               </div>
-              <div className="text-center">
-                <Globe className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-900">Search History</h3>
-                <p className="text-gray-600">Track all your research</p>
+              <div style={{ textAlign: 'center' }}>
+                <Globe style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  color: '#2563eb', 
+                  margin: '0 auto 8px auto' 
+                }} />
+                <h3 style={{ fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>Search History</h3>
+                <p style={{ color: '#4b5563', margin: 0 }}>Track all your research</p>
               </div>
-              <div className="text-center">
-                <Shield className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-900">Saved Domains</h3>
-                <p className="text-gray-600">Build your portfolio</p>
+              <div style={{ textAlign: 'center' }}>
+                <Shield style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  color: '#9333ea', 
+                  margin: '0 auto 8px auto' 
+                }} />
+                <h3 style={{ fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>Saved Domains</h3>
+                <p style={{ color: '#4b5563', margin: 0 }}>Build your portfolio</p>
               </div>
             </div>
 
             <SignInButton mode="modal">
-              <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors font-semibold text-lg">
+              <button style={{
+                ...buttonStyle,
+                background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                color: '#ffffff',
+                padding: '16px 32px',
+                fontSize: '18px',
+                fontWeight: '700',
+                margin: '0 auto'
+              }}>
                 Sign In to Get Started
               </button>
             </SignInButton>
@@ -229,63 +345,127 @@ const DomainSearch = () => {
 
   // Signed in - show main app
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #e0e7ff 100%)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Globe className="w-8 h-8 text-blue-600" />
-              <span className="text-2xl font-bold text-gray-900">DomainInsight</span>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(12px)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50
+      }}>
+        <div style={{
+          maxWidth: '1152px',
+          margin: '0 auto',
+          padding: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
+            <span style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              DomainInsight
+            </span>
+          </div>
+
+            {isSignedIn && (
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <button onClick={() => window.location.href = '/saved'}>
+                  Saved Domains
+                </button>
+                <button onClick={() => window.location.href = '/history'}>
+                  Search History {userStats.plan === 'free' && '(Pro)'}
+                </button>
+              </div>
+            )}
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ fontSize: '14px', color: '#4b5563' }}>
+              {userStats.plan === 'free' ? (
+                <span style={{ color: remainingSearches <= 3 ? '#dc2626' : '#4b5563', fontWeight: remainingSearches <= 3 ? '600' : 'normal' }}>
+                  Free: {remainingSearches} searches left
+                </span>
+              ) : (
+                <span style={{ color: '#16a34a' }}>
+                  {userStats.plan.charAt(0).toUpperCase() + userStats.plan.slice(1)} Plan
+                </span>
+              )}
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                {userStats.plan === 'free' ? (
-                  <span className={remainingSearches <= 3 ? 'text-red-600 font-medium' : ''}>
-                    Free: {remainingSearches} searches left
-                  </span>
-                ) : (
-                  <span className="text-green-600">
-                    {userStats.plan.charAt(0).toUpperCase() + userStats.plan.slice(1)} Plan
-                  </span>
-                )}
+            {userStats.plan === 'free' && (
+              <button 
+                onClick={() => window.location.href = '/pricing'}
+                style={{
+                  ...buttonStyle,
+                  background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                  color: '#ffffff'
+                }}
+              >
+                Upgrade Now
+              </button>
+            )}
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <User style={{ width: '20px', height: '20px', color: '#4b5563' }} />
+                <span style={{ fontSize: '14px', color: '#4b5563' }}>
+                  {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+                </span>
               </div>
-              
-              {userStats.plan === 'free' && (
-                <button 
-                  onClick={() => window.location.href = '/pricing'}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors"
-                >
-                  Upgrade to Pro
+              <SignOutButton>
+                <button style={{
+                  ...buttonStyle,
+                  background: 'none',
+                  color: '#4b5563',
+                  border: '1px solid #d1d5db',
+                  padding: '8px 12px'
+                }}>
+                  <LogOut style={{ width: '16px', height: '16px' }} />
+                  <span>Sign Out</span>
                 </button>
-              )}
-              
-              {/* Auth Button */}
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2">
-                  <User className="w-5 h-5 text-gray-600" />
-                  <span className="text-sm text-gray-600 hidden sm:inline">
-                    {user?.firstName || user?.emailAddresses[0]?.emailAddress}
-                  </span>
-                </div>
-                <SignOutButton>
-                  <button className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors">
-                    <LogOut className="w-4 h-4" />
-                    <span className="text-sm">Sign Out</span>
-                  </button>
-                </SignOutButton>
-              </div>
+              </SignOutButton>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div style={{
+        maxWidth: '1152px',
+        margin: '0 auto',
+        padding: '32px 16px'
+      }}>
         {/* Welcome Message for New Users */}
         {user && userStats.searchesUsed === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-blue-800">
+          <div style={{
+            background: '#dbeafe',
+            border: '1px solid #93c5fd',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '24px',
+            color: '#1e40af'
+          }}>
+            <p style={{ margin: 0 }}>
               <strong>Welcome {user.firstName || 'to DomainInsight'}!</strong> 
               {' '}You have {userStats.searchLimit} free searches to get started. 
               Try searching for any domain to see comprehensive WHOIS, DNS, and security data.
@@ -294,38 +474,83 @@ const DomainSearch = () => {
         )}
 
         {/* Search Section */}
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h1 style={{
+              fontSize: '36px',
+              fontWeight: '700',
+              color: '#111827',
+              marginBottom: '8px',
+              margin: '0 0 8px 0'
+            }}>
               Domain Research Made Simple
             </h1>
-            <p className="text-gray-600">
+            <p style={{
+              color: '#4b5563',
+              margin: 0
+            }}>
               Get comprehensive WHOIS, DNS, and security information for any domain
             </p>
           </div>
           
-          <div className="flex space-x-4 max-w-2xl mx-auto">
-            <div className="flex-1 relative">
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            maxWidth: '600px',
+            margin: '0 auto',
+            flexDirection: window.innerWidth < 640 ? 'column' : 'row'
+          }}>
+            <div style={{ flex: 1 }}>
               <input
                 type="text"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 placeholder="Enter domain name (e.g., example.com)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  outline: 'none',
+                  transition: 'all 0.2s ease',
+                  boxSizing: 'border-box'
+                }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 disabled={isFreeTierLimitReached}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#2563eb';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#d1d5db';
+                  e.target.style.boxShadow = 'none';
+                }}
               />
             </div>
             
             <button
               onClick={handleSearch}
               disabled={loading || isFreeTierLimitReached || !domain.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
+              style={{
+                ...buttonStyle,
+                background: loading || isFreeTierLimitReached || !domain.trim() ? '#9ca3af' : '#2563eb',
+                color: '#ffffff',
+                padding: '12px 24px',
+                cursor: loading || isFreeTierLimitReached || !domain.trim() ? 'not-allowed' : 'pointer'
+              }}
             >
               {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid #ffffff',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
               ) : (
-                <Search className="w-5 h-5" />
+                <Search style={{ width: '20px', height: '20px' }} />
               )}
               <span>{loading ? 'Searching...' : 'Search'}</span>
             </button>
@@ -333,19 +558,40 @@ const DomainSearch = () => {
           
           {/* Error Display */}
           {error && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
-              <p className="text-red-800">{error}</p>
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#991b1b', margin: 0 }}>{error}</p>
             </div>
           )}
           
           {/* Free Tier Limit Warning */}
           {isFreeTierLimitReached && (
-            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
-              <p className="text-yellow-800">
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: '#fefce8',
+              border: '1px solid #fde047',    // Fixed: removed extra quote
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#a16207', margin: 0 }}>
                 You've reached your free search limit. 
                 <button 
                   onClick={() => window.location.href = '/pricing'}
-                  className="text-blue-600 hover:text-blue-700 ml-1 underline"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    marginLeft: '4px'
+                  }}
                 >
                   Upgrade to Pro
                 </button> for unlimited searches!
@@ -355,12 +601,26 @@ const DomainSearch = () => {
 
           {/* Low searches warning */}
           {!isFreeTierLimitReached && remainingSearches <= 3 && remainingSearches > 0 && (
-            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg text-center">
-              <p className="text-orange-800 text-sm">
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#ea580c', fontSize: '14px', margin: 0 }}>
                 Only {remainingSearches} searches remaining. 
                 <button 
                   onClick={() => window.location.href = '/pricing'}
-                  className="text-blue-600 hover:text-blue-700 ml-1 underline"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    marginLeft: '4px'
+                  }}
                 >
                   Upgrade now
                 </button> to continue researching.
@@ -369,14 +629,21 @@ const DomainSearch = () => {
           )}
         </div>
 
-        {/* Results Section - Keep all existing result display code */}
+        {/* Results Section */}
         {results && (
-          <div className="space-y-6">
+          <div>
             {/* Cache indicator */}
             {results.cached && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-                <p className="text-blue-800 text-sm">
-                  <Clock className="w-4 h-4 inline mr-1" />
+              <div style={{
+                background: '#dbeafe',
+                border: '1px solid #93c5fd',
+                borderRadius: '8px',
+                padding: '12px',
+                textAlign: 'center',
+                marginBottom: '24px'
+              }}>
+                <p style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>
+                  <Clock style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
                   Results from cache (updated within the last hour)
                 </p>
               </div>
@@ -384,9 +651,15 @@ const DomainSearch = () => {
 
             {/* Error warnings */}
             {results.errors && results.errors.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h3 className="font-medium text-yellow-800 mb-2">Some data sources unavailable:</h3>
-                <ul className="text-sm text-yellow-700">
+              <div style={{
+                background: '#fefce8',
+                border: '1px solid #fde047',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '24px'
+              }}>
+                <h3 style={{ fontWeight: '600', color: '#a16207', marginBottom: '8px', margin: '0 0 8px 0' }}>Some data sources unavailable:</h3>
+                <ul style={{ fontSize: '14px', color: '#713f12', margin: 0, paddingLeft: '16px' }}>
                   {results.errors.map((error, index) => (
                     <li key={index}>• {error}</li>
                   ))}
@@ -394,42 +667,45 @@ const DomainSearch = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+              gap: '24px',
+              marginBottom: '24px'
+            }}>
               {/* WHOIS Info */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Globe className="w-6 h-6 text-blue-600" />
-                  <h2 className="text-xl font-semibold">WHOIS Information</h2>
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Globe style={{ width: '24px', height: '24px', color: '#2563eb' }} />
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>WHOIS Information</h2>
                 </div>
                 
                 {results.whois ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Domain:</span>
-                      <span className="font-medium">{results.domain}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Registrar:</span>
-                      <span className="font-medium">{results.whois.registrar || 'Unknown'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Registration:</span>
-                      <span className="font-medium">{formatDate(results.whois.registrationDate)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Expires:</span>
-                      <span className="font-medium">{formatDate(results.whois.expirationDate)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Organization:</span>
-                      <span className="font-medium">{results.whois.registrant?.organization || 'Private'}</span>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[
+                      { label: 'Domain:', value: results.domain },
+                      { label: 'Registrar:', value: results.whois.registrar || 'Unknown' },
+                      { label: 'Registration:', value: formatDate(results.whois.registrationDate) },
+                      { label: 'Expires:', value: formatDate(results.whois.expirationDate) },
+                      { label: 'Organization:', value: results.whois.registrant?.organization || 'Private' }
+                    ].map((item, index) => (
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                        <span style={{ color: '#4b5563', fontSize: '14px', minWidth: '80px' }}>{item.label}</span>
+                        <span style={{ fontWeight: '500', textAlign: 'right', fontSize: '14px' }}>{item.value}</span>
+                      </div>
+                    ))}
                     {results.whois.nameServers && results.whois.nameServers.length > 0 && (
                       <div>
-                        <span className="text-gray-600 text-sm">Name Servers:</span>
-                        <div className="mt-1 space-y-1">
+                        <span style={{ color: '#4b5563', fontSize: '14px', fontWeight: '500' }}>Name Servers:</span>
+                        <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           {results.whois.nameServers.slice(0, 3).map((ns: string, index: number) => (
-                            <div key={index} className="font-mono text-sm bg-gray-50 px-2 py-1 rounded">
+                            <div key={index} style={{
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              background: '#f9fafb',
+                              padding: '4px 8px',
+                              borderRadius: '4px'
+                            }}>
                               {ns}
                             </div>
                           ))}
@@ -438,47 +714,51 @@ const DomainSearch = () => {
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500">WHOIS data unavailable</p>
+                  <p style={{ color: '#6b7280', margin: 0 }}>WHOIS data unavailable</p>
                 )}
               </div>
 
               {/* Security Info */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center space-x-2 mb-4">
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <SecurityIcon malicious={results.security?.malicious} />
-                  <h2 className="text-xl font-semibold">Security Analysis</h2>
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>Security Analysis</h2>
                 </div>
                 
                 {results.security ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`font-medium ${
-                        results.security.malicious ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {results.security.reputation}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Threats:</span>
-                      <span className="font-medium">
-                        {results.security.threats}
-                        {results.security.total && ` / ${results.security.total}`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Last Scan:</span>
-                      <span className="font-medium">{formatDate(results.security.lastScan)}</span>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[
+                      { label: 'Status:', value: results.security.reputation, color: results.security.malicious ? '#dc2626' : '#16a34a' },
+                      { label: 'Threats:', value: `${results.security.threats}${results.security.total ? ` / ${results.security.total}` : ''}` },
+                      { label: 'Last Scan:', value: formatDate(results.security.lastScan) }
+                    ].map((item, index) => (
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                        <span style={{ color: '#4b5563', fontSize: '14px', minWidth: '80px' }}>{item.label}</span>
+                        <span style={{ 
+                          fontWeight: '500', 
+                          textAlign: 'right', 
+                          fontSize: '14px',
+                          color: item.color || '#111827'
+                        }}>
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500">Security data unavailable</p>
+                  <p style={{ color: '#6b7280', margin: 0 }}>Security data unavailable</p>
                 )}
                 
                 {userStats.plan === 'free' && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-blue-800 text-sm">
-                      <Star className="w-4 h-4 inline mr-1" />
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    background: '#dbeafe',
+                    border: '1px solid #93c5fd',
+                    borderRadius: '8px'
+                  }}>
+                    <p style={{ color: '#1e40af', fontSize: '14px', margin: 0 }}>
+                      <Star style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
                       Upgrade to Pro for detailed threat analysis and historical data
                     </p>
                   </div>
@@ -487,81 +767,90 @@ const DomainSearch = () => {
 
               {/* IP Reputation Analysis */}
               {results.abuse && (
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Globe className="w-6 h-6 text-purple-600" />
-                    <h2 className="text-xl font-semibold">IP Reputation Analysis</h2>
+                <div style={cardStyle}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <Globe style={{ width: '24px', height: '24px', color: '#9333ea' }} />
+                    <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>IP Reputation Analysis</h2>
                   </div>
                   
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">IP Address:</span>
-                      <span className="font-medium font-mono">{results.abuse.ip}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Abuse Confidence:</span>
-                      <span className={`font-medium ${
-                        results.abuse.abuseConfidence > 75 ? 'text-red-600' :
-                        results.abuse.abuseConfidence > 25 ? 'text-yellow-600' : 'text-green-600'
-                      }`}>
-                        {results.abuse.abuseConfidence}%
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`font-medium ${
-                        results.abuse.isAbusive ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {results.abuse.isAbusive ? '⚠️ Potentially Abusive' : '✅ Clean'}
-                      </span>
-                    </div>
-                    
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {[
+                      { label: 'IP Address:', value: results.abuse.ip },
+                      // Only show Abuse Confidence if it's defined and not null
+                      ...(results.abuse.abuseConfidence !== undefined && results.abuse.abuseConfidence !== null ? [{
+                        label: 'Abuse Confidence:', 
+                        value: `${results.abuse.abuseConfidence}%`,
+                        color: results.abuse.abuseConfidence > 75 ? '#dc2626' : 
+                              results.abuse.abuseConfidence > 25 ? '#d97706' : '#16a34a'
+                      }] : []),
+                      { 
+                        label: 'Status:', 
+                        value: results.abuse.isAbusive ? '⚠️ Potentially Abusive' : '✅ Clean',
+                        color: results.abuse.isAbusive ? '#dc2626' : '#16a34a'
+                      },
+                      { label: 'Location:', value: results.abuse.countryCode || 'Unknown' },
+                      { label: 'ISP:', value: results.abuse.isp || 'Unknown' },
+                      { label: 'Usage Type:', value: results.abuse.usageType || 'Unknown' }
+                    ].map((item, index) => (
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                        <span style={{ color: '#4b5563', fontSize: '14px', minWidth: '80px' }}>{item.label}</span>
+                        <span style={{ 
+                          fontWeight: '500', 
+                          textAlign: 'right', 
+                          fontSize: '14px',
+                          color: item.color || '#111827',
+                          fontFamily: item.label === 'IP Address:' ? 'monospace' : 'inherit'
+                        }}>
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
+
                     {results.abuse.totalReports > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Abuse Reports:</span>
-                        <span className="font-medium text-red-600">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                        <span style={{ color: '#4b5563', fontSize: '14px', minWidth: '80px' }}>Abuse Reports:</span>
+                        <span style={{ 
+                          fontWeight: '500', 
+                          textAlign: 'right', 
+                          fontSize: '14px',
+                          color: '#dc2626'
+                        }}>
                           {results.abuse.totalReports} reports from {results.abuse.numDistinctUsers} users
                         </span>
                       </div>
                     )}
                     
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Location:</span>
-                      <span className="font-medium">{results.abuse.countryCode || 'Unknown'}</span>
-                    </div>
-                    
-                    {results.abuse.isp && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">ISP:</span>
-                        <span className="font-medium">{results.abuse.isp}</span>
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Usage Type:</span>
-                      <span className="font-medium">{results.abuse.usageType || 'Unknown'}</span>
-                    </div>
-                    
                     {results.abuse.isWhitelisted && (
-                      <div className="bg-green-50 border border-green-200 rounded p-2">
-                        <p className="text-green-800 text-sm">✅ This IP is whitelisted (trusted)</p>
+                      <div style={{
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: '4px',
+                        padding: '8px'
+                      }}>
+                        <p style={{ color: '#15803d', fontSize: '14px', margin: 0 }}>✅ This IP is whitelisted (trusted)</p>
                       </div>
                     )}
                     
                     {results.abuse.lastReportedAt && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Last Reported:</span>
-                        <span className="font-medium">{formatDate(results.abuse.lastReportedAt)}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                        <span style={{ color: '#4b5563', fontSize: '14px', minWidth: '80px' }}>Last Reported:</span>
+                        <span style={{ fontWeight: '500', textAlign: 'right', fontSize: '14px' }}>
+                          {formatDate(results.abuse.lastReportedAt)}
+                        </span>
                       </div>
                     )}
                   </div>
                   
                   {userStats.plan === 'free' && (
-                    <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <p className="text-purple-800 text-sm">
-                        <Star className="w-4 h-4 inline mr-1" />
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px',
+                      background: '#faf5ff',
+                      border: '1px solid #e9d5ff',
+                      borderRadius: '8px'
+                    }}>
+                      <p style={{ color: '#7c3aed', fontSize: '14px', margin: 0 }}>
+                        <Star style={{ width: '16px', height: '16px', display: 'inline', marginRight: '4px' }} />
                         Upgrade to Pro for advanced IP geolocation and historical abuse data
                       </p>
                     </div>
@@ -570,33 +859,44 @@ const DomainSearch = () => {
               )}
 
               {/* DNS Records */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Clock className="w-6 h-6 text-purple-600" />
-                  <h2 className="text-xl font-semibold">DNS Records</h2>
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Clock style={{ width: '24px', height: '24px', color: '#9333ea' }} />
+                  <h2 style={{ fontSize: '20px', fontWeight: '600', margin: 0 }}>DNS Records</h2>
                 </div>
                 
                 {results.dns ? (
-                  <div className="space-y-3">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {Object.entries(results.dns).map(([type, records]: [string, any]) => {
                       if (!records || records.length === 0) return null;
                       
                       return (
                         <div key={type}>
-                          <span className="text-gray-600 text-sm font-medium">
+                          <span style={{ color: '#4b5563', fontSize: '14px', fontWeight: '500' }}>
                             {type.toUpperCase()} Records:
                           </span>
-                          <div className="mt-1 space-y-1">
+                          <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {records.slice(0, 3).map((record: any, index: number) => (
-                              <div key={index} className="font-mono text-sm bg-gray-50 px-2 py-1 rounded flex justify-between">
+                              <div key={index} style={{
+                                fontFamily: 'monospace',
+                                fontSize: '12px',
+                                background: '#f9fafb',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
                                 <span>{record.value || record}</span>
                                 {record.ttl && (
-                                  <span className="text-gray-400 text-xs">TTL: {record.ttl}</span>
+                                  <span style={{ color: '#9ca3af', fontSize: '10px' }}>TTL: {record.ttl}</span>
                                 )}
                               </div>
                             ))}
                             {records.length > 3 && (
-                              <p className="text-xs text-gray-500">...and {records.length - 3} more</p>
+                              <p style={{ fontSize: '12px', color: '#6b7280', margin: '4px 0 0 0' }}>
+                                ...and {records.length - 3} more
+                              </p>
                             )}
                           </div>
                         </div>
@@ -604,69 +904,89 @@ const DomainSearch = () => {
                     })}
                   </div>
                 ) : (
-                  <p className="text-gray-500">DNS data unavailable</p>
+                  <p style={{ color: '#6b7280', margin: 0 }}>DNS data unavailable</p>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-semibold mb-4">Actions</h2>
+              <div style={cardStyle}>
+                <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', margin: '0 0 16px 0' }}>Actions</h2>
                 
-                <div className="space-y-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <button 
                     onClick={saveDomain}
-                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    style={{
+                      ...buttonStyle,
+                      width: '100%',
+                      justifyContent: 'center',
+                      background: 'none',
+                      border: '1px solid #d1d5db',
+                      color: '#374151'
+                    }}
                   >
-                    <Star className="w-4 h-4" />
+                    <Star style={{ width: '16px', height: '16px' }} />
                     <span>Save Domain</span>
                   </button>
                   
                   <button 
-                    className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      userStats.plan === 'free' 
-                        ? 'border border-gray-300 text-gray-500 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
                     disabled={userStats.plan === 'free'}
+                    style={{
+                      ...buttonStyle,
+                      width: '100%',
+                      justifyContent: 'center',
+                      background: userStats.plan === 'free' ? '#f3f4f6' : '#2563eb',
+                      border: userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
+                      color: userStats.plan === 'free' ? '#6b7280' : '#ffffff',
+                      cursor: userStats.plan === 'free' ? 'not-allowed' : 'pointer'
+                    }}
                   >
-                    <Download className="w-4 h-4" />
+                    <Download style={{ width: '16px', height: '16px' }} />
                     <span>Export Report</span>
-                    {userStats.plan === 'free' && <span className="text-xs">(Pro)</span>}
+                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Pro)</span>}
                   </button>
                   
                   <button 
-                    className={`w-full flex items-center justify-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      userStats.plan === 'free' 
-                        ? 'border border-gray-300 text-gray-500 cursor-not-allowed' 
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
                     disabled={userStats.plan === 'free'}
+                    style={{
+                      ...buttonStyle,
+                      width: '100%',
+                      justifyContent: 'center',
+                      background: userStats.plan === 'free' ? '#f3f4f6' : '#16a34a',
+                      border: userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
+                      color: userStats.plan === 'free' ? '#6b7280' : '#ffffff',
+                      cursor: userStats.plan === 'free' ? 'not-allowed' : 'pointer'
+                    }}
                   >
-                    <Clock className="w-4 h-4" />
+                    <Clock style={{ width: '16px', height: '16px' }} />
                     <span>Historical Data</span>
-                    {userStats.plan === 'free' && <span className="text-xs">(Pro)</span>}
+                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Pro)</span>}
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Additional Info */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Search Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div style={cardStyle}>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', margin: '0 0 16px 0' }}>Search Details</h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+                fontSize: '14px'
+              }}>
                 <div>
-                  <span className="text-gray-600">Search performed:</span>
-                  <p className="font-medium">{new Date().toLocaleString()}</p>
+                  <span style={{ color: '#4b5563' }}>Search performed:</span>
+                  <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>{new Date().toLocaleString()}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600">Remaining searches:</span>
-                  <p className="font-medium">
+                  <span style={{ color: '#4b5563' }}>Remaining searches:</span>
+                  <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>
                     {userStats.plan === 'free' ? remainingSearches : 'Unlimited'}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-600">Account:</span>
-                  <p className="font-medium">{userStats.email}</p>
+                  <span style={{ color: '#4b5563' }}>Account:</span>
+                  <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>{userStats.email}</p>
                 </div>
               </div>
             </div>
@@ -675,21 +995,54 @@ const DomainSearch = () => {
 
         {/* Pricing CTA */}
         {userStats.plan === 'free' && (
-          <div className="mt-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white p-8 text-center">
-            <h2 className="text-2xl font-bold mb-2">Ready to unlock full potential?</h2>
-            <p className="text-blue-100 mb-6">
+          <div style={{
+            background: 'linear-gradient(to right, #2563eb, #9333ea, #3730a3)',
+            borderRadius: '16px',
+            color: '#ffffff',
+            padding: '32px',
+            textAlign: 'center',
+            marginTop: '32px'
+          }}>
+            <h2 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '8px', margin: '0 0 8px 0' }}>
+              Ready to unlock full potential?
+            </h2>
+            <p style={{
+              fontSize: '18px',
+              color: '#bfdbfe',
+              marginBottom: '24px',
+              margin: '0 0 24px 0'
+            }}>
               Get unlimited searches, historical data, API access, and more with Pro
             </p>
             
             <button 
               onClick={() => window.location.href = '/pricing'}
-              className="bg-white text-blue-600 px-8 py-3 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-lg"
+              style={{
+                background: '#ffffff',
+                color: '#2563eb',
+                padding: '12px 32px',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: '700',
+                fontSize: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
             >
               Upgrade Now
             </button>
           </div>
         )}
       </div>
+
+      {/* Add keyframe animation for spinner */}
+              {/* Add keyframe animation for spinner */}
+      <style jsx>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
