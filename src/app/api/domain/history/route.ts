@@ -6,7 +6,8 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
-    const { searchParams } = new URL(request.url);
+    const url = new URL(request.url);
+    const { searchParams } = url;
     const domain = searchParams.get('domain');
     
     if (!userId) {

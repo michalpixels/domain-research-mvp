@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the origin from request headers
-    const origin = request.headers.get('origin') || 'http://localhost:3000';
+    const headers = await request.headers;
+    const origin = headers.get('origin') || 'http://localhost:3000';
 
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({

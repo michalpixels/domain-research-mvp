@@ -139,23 +139,22 @@ const PricingPage = () => {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
-              <span style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                background: 'linear-gradient(to right, #2563eb, #4f46e5)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                color: 'transparent'
-              }}>
-                DomainInsight
-              </span>
-            </div>
+            <a href="/" style={{ textDecoration: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
+                <span style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  background: 'linear-gradient(to right, #2563eb, #4f46e5)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                  cursor: 'pointer' // Good practice to show it's clickable
+                }}>
+                  DomainInsight
+                </span>
+              </div>
+            </a>
             <button 
               onClick={() => window.location.href = '/'}
               style={{

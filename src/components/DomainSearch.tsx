@@ -1,4 +1,4 @@
-// src/components/DomainSearch.tsx - WITH UPGRADE STATUS HANDLING
+// src/components/DomainSearch.tsx - COMPLETE FIXED VERSION
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -18,6 +18,13 @@ interface DomainResults {
   userEmail?: string;
 }
 
+interface UserStats {
+  plan: string;
+  searchesUsed: number;
+  searchLimit: number;
+  email: string;
+}
+
 const DomainSearch = () => {
   const { user, isSignedIn, isLoaded } = useUser();
   const [domain, setDomain] = useState('');
@@ -25,23 +32,25 @@ const DomainSearch = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [upgradeStatus, setUpgradeStatus] = useState('');
-  const [userStats, setUserStats] = useState({ 
-    plan: 'free', 
-    searchesUsed: 0, 
-    searchLimit: 20,
-    email: ''
-  });
+  const [savedDomains, setSavedDomains] = useState<Set<string>>(new Set());
+  
+  // FIXED: Initialize with null instead of default values to prevent flickering
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
 
   // Load user subscription data when user signs in
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       loadUserData();
+    } else if (isLoaded && !isSignedIn) {
+      // Clear user data when not signed in
+      setUserStats(null);
+      setUserDataLoaded(true);
     }
   }, [isLoaded, isSignedIn]);
 
   // Check URL parameters for upgrade status
   useEffect(() => {
-    // Check URL parameters for upgrade status
     const urlParams = new URLSearchParams(window.location.search);
     const upgraded = urlParams.get('upgraded');
     const paymentSuccess = urlParams.get('payment_success');
@@ -49,10 +58,8 @@ const DomainSearch = () => {
     
     if (upgraded === 'true') {
       setUpgradeStatus('success');
-      // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      // Reload user data
-      loadUserData();
+      if (isSignedIn) loadUserData();
     } else if (paymentSuccess === 'true') {
       setUpgradeStatus('manual_needed');
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -60,22 +67,53 @@ const DomainSearch = () => {
       setUpgradeStatus('error');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [isSignedIn]);
 
-    useEffect(() => {
-    if (userStats.plan === 'starter') {
-      console.log('🔍 Debug userStats:', {
-        plan: userStats.plan,
-        searchLimit: userStats.searchLimit,
-        searchesUsed: userStats.searchesUsed,
-        remaining: userStats.searchLimit - userStats.searchesUsed,
-        remainingCalculated: remainingSearches
-      });
+  // Auto-search when domain is in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const domainFromUrl = urlParams.get('domain');
+    
+    if (domainFromUrl && !loading && isSignedIn && userDataLoaded && userStats) {
+      console.log(`🔍 Auto-searching for domain from URL: ${domainFromUrl}`);
+      setDomain(domainFromUrl);
+      
+      // Small delay to ensure user data is loaded
+      setTimeout(() => {
+        handleAutoSearch(domainFromUrl);
+      }, 500);
+      
+      // Clean the URL by removing the domain parameter
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [userStats]);
+    
+  }, [isSignedIn, userDataLoaded, loading, userStats]);
+
+  // Load saved domains when user data is ready
+  useEffect(() => {
+    if (userDataLoaded && userStats) {
+      loadSavedDomains();
+    }
+  }, [userDataLoaded, userStats]);
+
+  const loadSavedDomains = async () => {
+    if (!isSignedIn) return;
+    
+    try {
+      const response = await fetch('/api/domains/saved');
+      if (response.ok) {
+        const data = await response.json();
+        const domainNames = data.domains.map((d: any) => d.domain);
+        setSavedDomains(new Set(domainNames));
+      }
+    } catch (error) {
+      console.error('Failed to load saved domains:', error);
+    }
+  };
 
   const loadUserData = async () => {
     try {
+      setUserDataLoaded(false);
       const response = await fetch('/api/user/subscription');
       if (response.ok) {
         const userData = await response.json();
@@ -83,9 +121,72 @@ const DomainSearch = () => {
         console.log('User data loaded:', userData);
       } else if (response.status === 401) {
         console.log('User not authenticated');
+        setUserStats(null);
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
+      setUserStats(null);
+    } finally {
+      setUserDataLoaded(true);
+    }
+  };
+
+  const handleAutoSearch = async (searchDomain: string) => {
+    if (!isSignedIn) {
+      setError('Please sign in to search domains');
+      return;
+    }
+
+    if (!searchDomain.trim()) {
+      setError('Please enter a domain name');
+      return;
+    }
+    
+    // Basic domain validation
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(searchDomain.trim())) {
+      setError('Please enter a valid domain name (e.g., example.com)');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/domain/research', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domain: searchDomain.trim().toLowerCase() }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError('Please sign in to search domains');
+          return;
+        }
+        throw new Error(data.error || 'Search failed');
+      }
+      
+      setResults(data);
+      
+      // Update user data with remaining searches
+      if (data.remainingSearches !== undefined && userStats) {
+        setUserStats(prev => prev ? ({
+          ...prev,
+          searchesUsed: prev.searchLimit - data.remainingSearches,
+          plan: data.userPlan || prev.plan
+        }) : null);
+      }
+      
+    } catch (error: any) {
+      setError(error.message || 'An error occurred during the search');
+      console.error('Auto-search error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -132,12 +233,12 @@ const DomainSearch = () => {
       setResults(data);
       
       // Update user data with remaining searches
-      if (data.remainingSearches !== undefined) {
-        setUserStats(prev => ({
+      if (data.remainingSearches !== undefined && userStats) {
+        setUserStats(prev => prev ? ({
           ...prev,
           searchesUsed: prev.searchLimit - data.remainingSearches,
           plan: data.userPlan || prev.plan
-        }));
+        }) : null);
       }
       
     } catch (error: any) {
@@ -164,6 +265,8 @@ const DomainSearch = () => {
       });
       
       if (response.ok) {
+        // Add domain to saved set for visual feedback
+        setSavedDomains(prev => new Set(prev).add(results.domain));
         alert('Domain saved successfully!');
       } else {
         const error = await response.json();
@@ -174,15 +277,13 @@ const DomainSearch = () => {
     }
   };
 
-  // Add this function to your DomainSearch.tsx component (after saveDomain function):
   const exportReport = () => {
-    if (!results || userStats.plan === 'free') {
+    if (!results || !userStats || userStats.plan === 'free') {
       alert('Export functionality is available for Starter and Pro users only.');
       return;
     }
 
     try {
-      // Create comprehensive report data
       const reportData = {
         domain: results.domain,
         searchDate: new Date().toISOString(),
@@ -224,10 +325,8 @@ const DomainSearch = () => {
         errors: results.errors || []
       };
 
-      // Generate CSV content
       const csvContent = generateCSVReport(reportData);
       
-      // Create and download file
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -238,7 +337,6 @@ const DomainSearch = () => {
       link.click();
       document.body.removeChild(link);
       
-      // Show success message
       alert(`Domain report for ${results.domain} has been exported successfully!`);
       
     } catch (error) {
@@ -247,9 +345,8 @@ const DomainSearch = () => {
     }
   };
 
-  // Add this function to your DomainSearch.tsx component (after exportReport function):
   const showHistoricalData = async () => {
-    if (!results || userStats.plan === 'free') {
+    if (!results || !userStats || userStats.plan === 'free') {
       alert('Historical data is available for Starter and Pro users only.');
       return;
     }
@@ -257,7 +354,6 @@ const DomainSearch = () => {
     try {
       setLoading(true);
       
-      // Fetch real historical data from API
       const response = await fetch(`/api/domain/history?domain=${results.domain}`);
       
       if (!response.ok) {
@@ -267,13 +363,11 @@ const DomainSearch = () => {
       
       const historicalData = await response.json();
       
-      // If no historical data exists yet, show message
       if (historicalData.snapshots.length === 0) {
         alert(`No historical data available for ${results.domain} yet. Historical data will be collected from future searches.`);
         return;
       }
       
-      // Process the real data and show modal
       showHistoricalModal(historicalData);
       
     } catch (error) {
@@ -284,8 +378,9 @@ const DomainSearch = () => {
     }
   };
 
+ // Replace this function in your DomainSearch.tsx:
+
   const showHistoricalModal = (historicalData: any) => {
-    // Create modal with real data
     const modal = document.createElement('div');
     modal.style.cssText = `
       position: fixed;
@@ -313,10 +408,16 @@ const DomainSearch = () => {
       position: relative;
     `;
     
-    // Generate content from real data
+    // FIXED: Create close function that safely removes modal
+    const closeModal = () => {
+      if (document.body.contains(modal)) {
+        document.body.removeChild(modal);
+      }
+    };
+    
     modalContent.innerHTML = generateRealHistoricalContent(historicalData);
     
-    // Add close functionality
+    // X button (top right)
     const closeButton = document.createElement('button');
     closeButton.textContent = '×';
     closeButton.style.cssText = `
@@ -329,29 +430,57 @@ const DomainSearch = () => {
       cursor: pointer;
       color: #6b7280;
     `;
+    closeButton.onclick = closeModal; // FIXED: Use proper event handler
     
-    closeButton.onclick = () => document.body.removeChild(modal);
+    // FIXED: Create working bottom close button
+    const bottomCloseButton = document.createElement('button');
+    bottomCloseButton.textContent = 'Close Historical Data';
+    bottomCloseButton.style.cssText = `
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    `;
+    bottomCloseButton.onclick = closeModal; // FIXED: Use proper event handler
+    
     modalContent.appendChild(closeButton);
+    modalContent.appendChild(bottomCloseButton); // FIXED: Add working button
     modal.appendChild(modalContent);
     
+    // Close on background click
     modal.onclick = (e) => {
-      if (e.target === modal) document.body.removeChild(modal);
+      if (e.target === modal) closeModal();
     };
+    
+    // FIXED: Add Escape key support
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
     
     document.body.appendChild(modal);
   };
 
+  // AND update this function to remove the broken button:
   const generateRealHistoricalContent = (data: any) => {
     const snapshots = data.snapshots;
     const domain = data.domain;
     
-    // Analyze changes between snapshots
     const changes = [];
     for (let i = 0; i < snapshots.length - 1; i++) {
       const current = snapshots[i].snapshot;
       const previous = snapshots[i + 1].snapshot;
       
-      // Check for registrar changes
       if (current.whois?.registrar !== previous.whois?.registrar) {
         changes.push({
           date: snapshots[i].date,
@@ -360,7 +489,6 @@ const DomainSearch = () => {
         });
       }
       
-      // Check for name server changes
       if (JSON.stringify(current.whois?.nameServers) !== JSON.stringify(previous.whois?.nameServers)) {
         changes.push({
           date: snapshots[i].date,
@@ -369,7 +497,6 @@ const DomainSearch = () => {
         });
       }
       
-      // Check for security status changes
       if (current.security?.malicious !== previous.security?.malicious) {
         changes.push({
           date: snapshots[i].date,
@@ -425,141 +552,14 @@ const DomainSearch = () => {
           </div>
         `}
         
-        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
-          <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" style="
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-          ">Close Historical Data</button>
-        </div>
+        <!-- REMOVED: The broken onclick button -->
       </div>
     `;
   };
 
-  // Helper function to generate historical data content
-  const generateHistoricalDataContent = (domain: string, plan: string) => {
-    const timeframes = plan === 'starter' ? '6 months' : '5 years';
-    const currentDate = new Date();
-    
-    // Generate mock historical data points
-    const historicalPoints = [];
-    const months = plan === 'starter' ? 6 : 24; // 6 months for starter, 24 months for pro
-    
-    for (let i = months; i >= 0; i--) {
-      const date = new Date(currentDate);
-      date.setMonth(date.getMonth() - i);
-      
-      historicalPoints.push({
-        date: date.toISOString().split('T')[0],
-        registrar: i === 0 ? (results?.whois?.registrar || 'Current Registrar') : 'Previous Registrar ' + (i % 3 + 1),
-        nameservers: i === 0 ? (results?.whois?.nameServers?.length || 2) : Math.floor(Math.random() * 4) + 1,
-        securityStatus: Math.random() > 0.8 ? 'Warning' : 'Clean',
-        changes: i === 0 ? 'Current' : (Math.random() > 0.7 ? 'Changed' : 'No Change')
-      });
-    }
-    
-    return `
-      <div>
-        <h2 style="font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 8px;">
-          Historical Data for ${domain}
-        </h2>
-        <p style="color: #4b5563; margin-bottom: 24px;">
-          ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan provides ${timeframes} of historical data
-        </p>
-        
-        <div style="margin-bottom: 32px;">
-          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
-            Registration History
-          </h3>
-          <div style="background: #f8fafc; border-radius: 8px; padding: 16px;">
-            <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 16px; font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 12px;">
-              <span>Date</span>
-              <span>Registrar</span>
-              <span>Name Servers</span>
-              <span>Status</span>
-            </div>
-            ${historicalPoints.slice(0, 8).map(point => `
-              <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr; gap: 16px; font-size: 14px; padding: 8px 0; border-top: 1px solid #e5e7eb;">
-                <span>${point.date}</span>
-                <span style="color: ${point.changes === 'Changed' ? '#dc2626' : '#374151'};">${point.registrar}</span>
-                <span>${point.nameservers} servers</span>
-                <span style="color: ${point.securityStatus === 'Warning' ? '#d97706' : '#16a34a'};">${point.securityStatus}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-        
-        <div style="margin-bottom: 32px;">
-          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
-            Key Changes Detected
-          </h3>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            ${historicalPoints.filter(p => p.changes === 'Changed').slice(0, 3).map(point => `
-              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 12px;">
-                <span style="color: #dc2626; font-weight: 600;">${point.date}:</span>
-                <span style="color: #7f1d1d;"> Registrar changed to ${point.registrar}</span>
-              </div>
-            `).join('')}
-            
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px;">
-              <span style="color: #16a34a; font-weight: 600;">Security:</span>
-              <span style="color: #15803d;"> No malicious activity detected in historical scans</span>
-            </div>
-          </div>
-        </div>
-        
-        <div style="margin-bottom: 24px;">
-          <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
-            Analytics Summary
-          </h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
-            <div style="background: #dbeafe; border-radius: 8px; padding: 16px; text-align: center;">
-              <div style="font-size: 24px; font-weight: 700; color: #1e40af;">${historicalPoints.filter(p => p.changes === 'Changed').length}</div>
-              <div style="font-size: 14px; color: #1e40af;">Total Changes</div>
-            </div>
-            <div style="background: #dcfce7; border-radius: 8px; padding: 16px; text-align: center;">
-              <div style="font-size: 24px; font-weight: 700; color: #15803d;">${Math.floor(Math.random() * 99) + 1}%</div>
-              <div style="font-size: 14px; color: #15803d;">Uptime</div>
-            </div>
-            <div style="background: #fef3c7; border-radius: 8px; padding: 16px; text-align: center;">
-              <div style="font-size: 24px; font-weight: 700; color: #d97706;">${historicalPoints.filter(p => p.securityStatus === 'Warning').length}</div>
-              <div style="font-size: 14px; color: #d97706;">Security Alerts</div>
-            </div>
-          </div>
-        </div>
-        
-        ${plan === 'starter' ? `
-          <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 16px; margin-top: 24px;">
-            <p style="color: #7c3aed; margin: 0; font-size: 14px;">
-              <strong>Upgrade to Pro</strong> for 5-year historical data, advanced analytics, and API access to historical records.
-            </p>
-          </div>
-        ` : ''}
-        
-        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
-          <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" style="
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-          ">Close Historical Data</button>
-        </div>
-      </div>
-    `;
-  };
-
-  // Add this helper function to generate CSV content:
   const generateCSVReport = (data: any) => {
     const lines = [];
     
-    // Header
     lines.push('DomainInsight - Domain Research Report');
     lines.push('');
     lines.push(`Domain,${data.domain}`);
@@ -568,7 +568,6 @@ const DomainSearch = () => {
     lines.push(`Plan,${data.plan.toUpperCase()}`);
     lines.push('');
     
-    // WHOIS Information
     lines.push('WHOIS INFORMATION');
     if (data.whois) {
       lines.push(`Registrar,${data.whois.registrar}`);
@@ -584,7 +583,6 @@ const DomainSearch = () => {
     }
     lines.push('');
     
-    // Security Analysis
     lines.push('SECURITY ANALYSIS');
     if (data.security) {
       lines.push(`Reputation,${data.security.reputation}`);
@@ -597,7 +595,6 @@ const DomainSearch = () => {
     }
     lines.push('');
     
-    // DNS Records
     lines.push('DNS RECORDS');
     if (data.dns && Object.keys(data.dns).length > 0) {
       Object.entries(data.dns).forEach(([type, records]: [string, any]) => {
@@ -613,7 +610,6 @@ const DomainSearch = () => {
     }
     lines.push('');
     
-    // IP Reputation
     if (data.abuse) {
       lines.push('IP REPUTATION ANALYSIS');
       lines.push(`IP Address,${data.abuse.ip}`);
@@ -627,7 +623,6 @@ const DomainSearch = () => {
       lines.push('');
     }
     
-    // Errors
     if (data.errors && data.errors.length > 0) {
       lines.push('ERRORS ENCOUNTERED');
       data.errors.forEach((error: string) => {
@@ -636,7 +631,6 @@ const DomainSearch = () => {
       lines.push('');
     }
     
-    // Footer
     lines.push('');
     lines.push('Report generated by DomainInsight');
     lines.push('https://nullr.com');
@@ -644,10 +638,12 @@ const DomainSearch = () => {
     return lines.join('\n');
   };
 
-  const remainingSearches = Math.max(0, userStats.searchLimit - userStats.searchesUsed);
-  const isFreeTierLimitReached = userStats.plan === 'free' && remainingSearches <= 0;
-  const isStarterLimitReached = userStats.plan === 'starter' && remainingSearches <= 0;
+  // FIXED: Only calculate these after userStats is loaded
+  const remainingSearches = userStats ? Math.max(0, userStats.searchLimit - userStats.searchesUsed) : 0;
+  const isFreeTierLimitReached = userStats?.plan === 'free' && remainingSearches <= 0;
+  const isStarterLimitReached = userStats?.plan === 'starter' && remainingSearches <= 0;
   const isSearchDisabled = isFreeTierLimitReached || isStarterLimitReached;
+  const isDomainSaved = results && savedDomains.has(results.domain);
 
   const formatDate = (dateString: string) => {
     if (!dateString || dateString === 'Unknown') return 'Unknown';
@@ -688,8 +684,8 @@ const DomainSearch = () => {
     marginBottom: '24px'
   };
 
-  // Loading state
-  if (!isLoaded) {
+  // FIXED: Show loading state until both auth and user data are loaded
+  if (!isLoaded || (isSignedIn && !userDataLoaded)) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -707,6 +703,12 @@ const DomainSearch = () => {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }}></div>
+        <style jsx>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -737,7 +739,18 @@ const DomainSearch = () => {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={() => window.location.href = '/'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px'
+              }}
+            >
               <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
               <span style={{
                 fontSize: '24px',
@@ -749,7 +762,7 @@ const DomainSearch = () => {
               }}>
                 DomainInsight
               </span>
-            </div>
+            </button>
             <SignInButton mode="modal">
               <button style={{
                 ...buttonStyle,
@@ -807,7 +820,7 @@ const DomainSearch = () => {
                   color: '#16a34a', 
                   margin: '0 auto 8px auto' 
                 }} />
-                <h3 style={{ fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>Free Account</h3>
+              <h3 style={{ fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>Free Account</h3>
                 <p style={{ color: '#4b5563', margin: 0 }}>20 searches per month</p>
               </div>
               <div style={{ textAlign: 'center' }}>
@@ -851,7 +864,7 @@ const DomainSearch = () => {
     );
   }
 
-  // Signed in - show main app
+  // Main signed-in UI
   return (
     <div style={{
       minHeight: '100vh',
@@ -878,7 +891,18 @@ const DomainSearch = () => {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button 
+            onClick={() => window.location.href = '/'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px'
+            }}
+          >
             <Globe style={{ width: '32px', height: '32px', color: '#2563eb' }} />
             <span style={{
               fontSize: '24px',
@@ -890,18 +914,38 @@ const DomainSearch = () => {
             }}>
               DomainInsight
             </span>
-          </div>
+          </button>
 
-            {isSignedIn && (
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <button onClick={() => window.location.href = '/saved'}>
-                  Saved Domains
-                </button>
-                <button onClick={() => window.location.href = '/history'}>
-                  Search History {userStats.plan === 'free' && '(Pro)'}
-                </button>
-              </div>
-            )}
+          {isSignedIn && (
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button 
+                onClick={() => window.location.href = '/saved'}
+                style={{
+                  color: '#4b5563',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px 12px',
+                  borderRadius: '8px'
+                }}
+              >
+                Saved Domains
+              </button>
+              <button 
+                onClick={() => window.location.href = '/history'}
+                style={{
+                  color: '#4b5563',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px 12px',
+                  borderRadius: '8px'
+                }}
+              >
+                Search History {userStats?.plan === 'free' && '(Pro)'}
+              </button>
+            </div>
+          )}
           
           <div style={{
             display: 'flex',
@@ -910,38 +954,36 @@ const DomainSearch = () => {
             flexWrap: 'wrap'
           }}>
             <div style={{ fontSize: '14px', color: '#4b5563' }}>
-              {userStats.plan === 'free' ? (
+              {userStats?.plan === 'free' ? (
                 <span style={{ color: remainingSearches <= 3 ? '#dc2626' : '#4b5563', fontWeight: remainingSearches <= 3 ? '600' : 'normal' }}>
                   Free: {remainingSearches} searches left
                 </span>
-              ) : userStats.plan === 'starter' ? (
+              ) : userStats?.plan === 'starter' ? (
                 <span style={{ color: remainingSearches <= 10 ? '#d97706' : '#16a34a' }}>
                   Starter: {remainingSearches} / 500 searches
                 </span>
-              ) : (
+              ) : userStats ? (
                 <span style={{ color: '#16a34a' }}>
                   {userStats.plan.charAt(0).toUpperCase() + userStats.plan.slice(1)} Plan
                 </span>
-              )}
+              ) : null}
             </div>
             
-            {/* Show upgrade button based on plan and remaining searches */}
-            {(userStats.plan === 'free' || 
+            {userStats && (userStats.plan === 'free' || 
               (userStats.plan === 'starter' && (remainingSearches <= 50 || remainingSearches === 0))) && (
               <button 
                 onClick={() => window.location.href = '/pricing'}
                 style={{
                   ...buttonStyle,
-                  background: userStats.plan === 'free' ? 'linear-gradient(to right, #2563eb, #4f46e5)' : 'linear-gradient(to right, #9333ea, #ec4899)',
+                  background: userStats?.plan === 'free' ? 'linear-gradient(to right, #2563eb, #4f46e5)' : 'linear-gradient(to right, #9333ea, #ec4899)',
                   color: '#ffffff'
                 }}
               >
-                {userStats.plan === 'free' ? 'Upgrade Now' : 'Upgrade to Pro'}
+                {userStats?.plan === 'free' ? 'Upgrade Now' : 'Upgrade to Pro'}
               </button>
             )}
             
-            {/* Always show upgrade option for starter users in a different way */}
-            {userStats.plan === 'starter' && remainingSearches > 50 && (
+            {userStats?.plan === 'starter' && remainingSearches > 50 && (
               <button 
                 onClick={() => window.location.href = '/pricing'}
                 style={{
@@ -985,7 +1027,7 @@ const DomainSearch = () => {
         padding: '32px 16px'
       }}>
         {/* Welcome Message for New Users */}
-        {user && userStats.searchesUsed === 0 && (
+        {user && userStats && userStats.searchesUsed === 0 && !results && (
           <div style={{
             background: '#dbeafe',
             border: '1px solid #93c5fd',
@@ -1158,7 +1200,7 @@ const DomainSearch = () => {
           )}
 
           {/* Starter Plan Limit Warning */}
-          {userStats.plan === 'starter' && remainingSearches <= 0 && (
+          {userStats?.plan === 'starter' && remainingSearches <= 0 && (
             <div style={{
               marginTop: '16px',
               padding: '16px',
@@ -1186,8 +1228,8 @@ const DomainSearch = () => {
             </div>
           )}
 
-          {/* Low searches warning for Free users */}
-          {userStats.plan === 'free' && !isFreeTierLimitReached && remainingSearches <= 3 && remainingSearches > 0 && (
+          {/* Low searches warnings */}
+          {userStats?.plan === 'free' && !isFreeTierLimitReached && remainingSearches <= 3 && remainingSearches > 0 && (
             <div style={{
               marginTop: '12px',
               padding: '12px',
@@ -1215,8 +1257,7 @@ const DomainSearch = () => {
             </div>
           )}
 
-          {/* Low searches warning for Starter users */}
-          {userStats.plan === 'starter' && remainingSearches <= 50 && remainingSearches > 0 && (
+          {userStats?.plan === 'starter' && remainingSearches <= 50 && remainingSearches > 0 && (
             <div style={{
               marginTop: '12px',
               padding: '12px',
@@ -1240,35 +1281,6 @@ const DomainSearch = () => {
                 >
                   Upgrade to Pro
                 </button> for unlimited searches.
-              </p>
-            </div>
-          )}
-
-          {/* Low searches warning */}
-          {!isFreeTierLimitReached && remainingSearches <= 3 && remainingSearches > 0 && (
-            <div style={{
-              marginTop: '12px',
-              padding: '12px',
-              background: '#fff7ed',
-              border: '1px solid #fed7aa',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <p style={{ color: '#ea580c', fontSize: '14px', margin: 0 }}>
-                Only {remainingSearches} searches remaining. 
-                <button 
-                  onClick={() => window.location.href = '/pricing'}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#2563eb',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    marginLeft: '4px'
-                  }}
-                >
-                  Upgrade now
-                </button> to continue researching.
               </p>
             </div>
           )}
@@ -1394,7 +1406,7 @@ const DomainSearch = () => {
                   <p style={{ color: '#6b7280', margin: 0 }}>Security data unavailable</p>
                 )}
                 
-                {userStats.plan === 'free' && (
+                {userStats?.plan === 'free' && (
                   <div style={{
                     marginTop: '16px',
                     padding: '12px',
@@ -1421,7 +1433,6 @@ const DomainSearch = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
                       { label: 'IP Address:', value: results.abuse.ip },
-                      // Only show Abuse Confidence if it's defined and not null
                       ...(results.abuse.abuseConfidence !== undefined && results.abuse.abuseConfidence !== null ? [{
                         label: 'Abuse Confidence:', 
                         value: `${results.abuse.abuseConfidence}%`,
@@ -1486,7 +1497,7 @@ const DomainSearch = () => {
                     )}
                   </div>
                   
-                  {userStats.plan === 'free' && (
+                  {userStats?.plan === 'free' && (
                     <div style={{
                       marginTop: '16px',
                       padding: '12px',
@@ -1558,55 +1569,60 @@ const DomainSearch = () => {
                 <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', margin: '0 0 16px 0' }}>Actions</h2>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <button 
-                    onClick={saveDomain}
-                    style={{
-                      ...buttonStyle,
-                      width: '100%',
-                      justifyContent: 'center',
-                      background: 'none',
-                      border: '1px solid #d1d5db',
-                      color: '#374151'
-                    }}
-                  >
-                    <Star style={{ width: '16px', height: '16px' }} />
-                    <span>Save Domain</span>
-                  </button>
+                
+                <button 
+                  onClick={saveDomain}
+                  style={{
+                    ...buttonStyle,
+                    width: '100%',
+                    justifyContent: 'center',
+                    background: isDomainSaved ? '#fbbf24' : 'none',
+                    border: isDomainSaved ? 'none' : '1px solid #d1d5db',
+                    color: isDomainSaved ? '#ffffff' : '#374151'
+                  }}
+                >
+                  <Star style={{ 
+                    width: '16px', 
+                    height: '16px',
+                    fill: isDomainSaved ? '#ffffff' : 'none'
+                  }} />
+                  <span>{isDomainSaved ? 'Domain Saved' : 'Save Domain'}</span>
+                </button>
                   
                   <button 
                     onClick={exportReport}
-                    disabled={userStats.plan === 'free'}
+                    disabled={!userStats || userStats.plan === 'free'}
                     style={{
                       ...buttonStyle,
                       width: '100%',
                       justifyContent: 'center',
-                      background: userStats.plan === 'free' ? '#f3f4f6' : '#2563eb',
-                      border: userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
-                      color: userStats.plan === 'free' ? '#6b7280' : '#ffffff',
-                      cursor: userStats.plan === 'free' ? 'not-allowed' : 'pointer'
+                      background: !userStats || userStats.plan === 'free' ? '#f3f4f6' : '#2563eb',
+                      border: !userStats || userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
+                      color: !userStats || userStats.plan === 'free' ? '#6b7280' : '#ffffff',
+                      cursor: !userStats || userStats.plan === 'free' ? 'not-allowed' : 'pointer'
                     }}
                   >
                     <Download style={{ width: '16px', height: '16px' }} />
                     <span>Export Report</span>
-                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
+                    {(!userStats || userStats.plan === 'free') && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
                   </button>
                   
                   <button 
                     onClick={showHistoricalData}
-                    disabled={userStats.plan === 'free'}
+                    disabled={!userStats || userStats.plan === 'free'}
                     style={{
                       ...buttonStyle,
                       width: '100%',
                       justifyContent: 'center',
-                      background: userStats.plan === 'free' ? '#f3f4f6' : '#16a34a',
-                      border: userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
-                      color: userStats.plan === 'free' ? '#6b7280' : '#ffffff',
-                      cursor: userStats.plan === 'free' ? 'not-allowed' : 'pointer'
+                      background: !userStats || userStats.plan === 'free' ? '#f3f4f6' : '#16a34a',
+                      border: !userStats || userStats.plan === 'free' ? '1px solid #d1d5db' : 'none',
+                      color: !userStats || userStats.plan === 'free' ? '#6b7280' : '#ffffff',
+                      cursor: !userStats || userStats.plan === 'free' ? 'not-allowed' : 'pointer'
                     }}
                   >
                     <Clock style={{ width: '16px', height: '16px' }} />
                     <span>Historical Data</span>
-                    {userStats.plan === 'free' && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
+                    {(!userStats || userStats.plan === 'free') && <span style={{ fontSize: '12px' }}>(Starter+)</span>}
                   </button>
                 </div>
               </div>
@@ -1628,20 +1644,20 @@ const DomainSearch = () => {
                 <div>
                   <span style={{ color: '#4b5563' }}>Remaining searches:</span>
                   <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>
-                    {userStats.plan === 'free' ? (
+                    {userStats?.plan === 'free' ? (
                       `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)}`
-                    ) : userStats.plan === 'starter' ? (
+                    ) : userStats?.plan === 'starter' ? (
                       `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)} / 500`
-                    ) : userStats.plan === 'pro' || userStats.plan === 'enterprise' ? (
+                    ) : userStats?.plan === 'pro' || userStats?.plan === 'enterprise' ? (
                       'Unlimited'
-                    ) : (
+                    ) : userStats ? (
                       `${Math.max(0, userStats.searchLimit - userStats.searchesUsed)} / ${userStats.searchLimit}`
-                    )}
+                    ) : 'Loading...'}
                   </p>
                 </div>
                 <div>
                   <span style={{ color: '#4b5563' }}>Account:</span>
-                  <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>{userStats.email}</p>
+                  <p style={{ fontWeight: '500', margin: '4px 0 0 0' }}>{userStats?.email || 'Loading...'}</p>
                 </div>
               </div>
             </div>
@@ -1649,7 +1665,7 @@ const DomainSearch = () => {
         )}
 
         {/* Pricing CTA */}
-        {userStats.plan === 'free' && (
+        {userStats?.plan === 'free' && (
           <div style={{
             background: 'linear-gradient(to right, #2563eb, #9333ea, #3730a3)',
             borderRadius: '16px',
@@ -1690,7 +1706,6 @@ const DomainSearch = () => {
         )}
       </div>
 
-      {/* Add keyframe animation for spinner */}
       <style jsx>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
